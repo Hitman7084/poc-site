@@ -1,0 +1,294 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+/// Payment type for payment records
+enum PaymentType {
+  ADVANCE
+  DURING_WORK
+  FINAL
+}
+
+/// Expense category classification
+enum ExpenseCategory {
+  OFFICE
+  SITE_VISIT
+  PARTY_VISIT
+}
+
+/// User role for future authentication and authorization
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  WORKER
+}
+
+// ============================================================================
+// CORE ENTITIES
+// ============================================================================
+
+/// Site/Project entity
+/// Represents a construction site or project
+model Site {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(255)
+  location  String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  attendanceRecords  AttendanceRecord[]
+  materials          Material[]
+  dispatchesFrom     DispatchMaterial[] @relation("FromSite")
+  dispatchesTo       DispatchMaterial[] @relation("ToSite")
+  dailyWorkUpdates   DailyWorkUpdate[]
+  pendingWorkDetails PendingWorkDetail[]
+  payments           Payment[]
+
+  @@map("sites")
+}
+
+/// Worker entity
+/// Represents a construction worker
+model Worker {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(255)
+  phone     String?  @db.VarChar(20)
+  email     String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  attendanceRecords AttendanceRecord[]
+  overtimeRecords   OvertimeRecord[]
+
+  @@map("workers")
+}
+
+/// Client entity
+/// Represents a client or project owner
+model Client {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(255)
+  email     String?  @db.VarChar(255)
+  phone     String?  @db.VarChar(20)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  payments Payment[]
+
+  @@map("clients")
+}
+
+/// User entity (future-ready)
+/// For authentication and role-based access control
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique @db.VarChar(255)
+  password  String?  @db.VarChar(255)
+  name      String?  @db.VarChar(255)
+  role      UserRole @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ============================================================================
+// ATTENDANCE & OVERTIME
+// ============================================================================
+
+/// Attendance Record
+/// Daily attendance tracking for workers
+model AttendanceRecord {
+  id           String    @id @default(cuid())
+  workerId     String
+  siteId       String
+  date         DateTime  @db.Date
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  overtimeHours Float?    @default(0)
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  worker   Worker          @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  site     Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  overtime OvertimeRecord?
+
+  @@unique([workerId, siteId, date])
+  @@index([workerId])
+  @@index([siteId])
+  @@index([date])
+  @@map("attendance_records")
+}
+
+/// Overtime Record
+/// Tracks overtime details linked to attendance
+model OvertimeRecord {
+  id                  String   @id @default(cuid())
+  attendanceRecordId  String   @unique
+  workerId            String
+  hoursWorked         Float
+  overtimeReason      String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
+  worker           Worker           @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId])
+  @@map("overtime_records")
+}
+
+// ============================================================================
+// MATERIALS & DISPATCH
+// ============================================================================
+
+/// Material Record
+/// Tracks materials available at each site
+model Material {
+  id          String   @id @default(cuid())
+  siteId      String
+  name        String   @db.VarChar(255)
+  quantity    Float
+  unit        String?  @db.VarChar(50)
+  description String?  @db.Text
+  lastUpdated DateTime @default(now()) @updatedAt
+  createdAt   DateTime @default(now())
+
+  // Relations
+  site      Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  dispatches DispatchMaterial[] @relation("DispatchMaterial")
+
+  @@index([siteId])
+  @@map("materials")
+}
+
+/// Dispatch Material Record
+/// Tracks movement of materials between sites
+model DispatchMaterial {
+  id           String   @id @default(cuid())
+  materialId   String
+  fromSiteId   String
+  toSiteId     String
+  quantity     Float
+  dispatchDate DateTime @db.Date
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  material Material @relation("DispatchMaterial", fields: [materialId], references: [id], onDelete: Cascade)
+  fromSite Site     @relation("FromSite", fields: [fromSiteId], references: [id], onDelete: Cascade)
+  toSite   Site     @relation("ToSite", fields: [toSiteId], references: [id], onDelete: Cascade)
+
+  @@index([materialId])
+  @@index([fromSiteId])
+  @@index([toSiteId])
+  @@index([dispatchDate])
+  @@map("dispatch_materials")
+}
+
+// ============================================================================
+// DAILY WORK & VIDEO UPLOADS
+// ============================================================================
+
+/// Daily Work Update
+/// Tracks daily progress with video uploads
+/// Video files are stored in Supabase Storage, only metadata is stored here
+model DailyWorkUpdate {
+  id          String   @id @default(cuid())
+  siteId      String
+  description String   @db.Text
+  videoUrl    String   @db.VarChar(500)
+  uploadDate  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@index([uploadDate])
+  @@map("daily_work_updates")
+}
+
+// ============================================================================
+// FINANCIAL RECORDS
+// ============================================================================
+
+/// Payment Record
+/// Tracks client payments
+model Payment {
+  id          String      @id @default(cuid())
+  clientId    String
+  siteId      String
+  amount      Float
+  paymentType PaymentType
+  paymentDate DateTime    @db.Date
+  notes       String?     @db.Text
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([siteId])
+  @@index([paymentDate])
+  @@map("payments")
+}
+
+/// Miscellaneous Expense Record
+/// Tracks various expenses with categorization
+model ExpenseRecord {
+  id        String          @id @default(cuid())
+  amount    Float
+  category  ExpenseCategory
+  description String?        @db.Text
+  expenseDate DateTime       @db.Date
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([expenseDate])
+  @@map("expense_records")
+}
+
+// ============================================================================
+// PENDING WORK
+// ============================================================================
+
+/// Pending Work Detail
+/// Tracks unfinished work and delays
+model PendingWorkDetail {
+  id                   String   @id @default(cuid())
+  siteId               String
+  reasonForDelay       String   @db.Text
+  expectedCompletionDate DateTime @db.Date
+  notes                String?  @db.Text
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@map("pending_work_details")
+}
