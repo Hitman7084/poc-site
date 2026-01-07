@@ -7,17 +7,304 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// Minimal User model for bootstrap phase
-// Full database models will be added in subsequent steps
+// ============================================
+// ENUMS
+// ============================================
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+}
+
+enum PaymentType {
+  ADVANCE
+  DURING
+  FINAL
+}
+
+enum ExpenseCategory {
+  OFFICE
+  SITE_VISIT
+  PARTY_VISIT
+}
+
+enum PendingWorkStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ============================================
+// AUTHENTICATION
+// ============================================
+
+// User model for authentication (pre-created in DB)
+// No registration logic - users managed by admin
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  password  String
+  password  String   // Hashed with bcrypt
   name      String?
+  role      String   @default("user") // Future: admin, manager, user
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+// ============================================
+// CORE ENTITIES
+// ============================================
+
+// Worker - employees working on sites
+// Linked to attendance, overtime records
+model Worker {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  role      String? // e.g., "Mason", "Carpenter", "Laborer"
+  dailyRate Float? // Standard daily rate for overtime calculations
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  attendanceRecords AttendanceRecord[]
+  overtimeRecords   Overtime[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+// Site - construction/project sites
+// Central entity linked to most modules
+model Site {
+  id          String   @id @default(cuid())
+  name        String
+  location    String?
+  description String?
+  isActive    Boolean  @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  attendanceRecords     AttendanceRecord[]
+  materialRecords       MaterialRecord[]
+  dispatchRecordsFrom   DispatchRecord[]   @relation("DispatchFrom")
+  dispatchRecordsTo     DispatchRecord[]   @relation("DispatchTo")
+  workUpdates           WorkUpdate[]
+  overtimeRecords       Overtime[]
+  pendingWork           PendingWork[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+// ============================================
+// MODULE 1: ATTENDANCE RECORD
+// ============================================
+
+// Daily attendance tracking for workers at sites
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  workerId  String
+  siteId    String
+  date      DateTime         @db.Date
+  checkIn   DateTime?
+  checkOut  DateTime?
+  status    AttendanceStatus @default(PRESENT)
+  notes     String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // Relations
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([workerId, siteId, date]) // One record per worker per site per day
+  @@index([workerId])
+  @@index([siteId])
+  @@index([date])
+}
+
+// ============================================
+// MODULE 2: MATERIAL RECORD
+// ============================================
+
+// Materials used/purchased for sites
+model MaterialRecord {
+  id           String   @id @default(cuid())
+  siteId       String
+  materialName String
+  quantity     Float
+  unit         String // e.g., "kg", "bags", "pieces", "tons"
+  date         DateTime @db.Date
+  cost         Float? // Optional cost tracking
+  supplierName String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@index([date])
+  @@index([materialName])
+}
+
+// ============================================
+// MODULE 3: DISPATCH MATERIAL RECORD
+// ============================================
+
+// Material transfers between sites
+model DispatchRecord {
+  id             String   @id @default(cuid())
+  fromSiteId     String
+  toSiteId       String
+  materialName   String
+  quantity       Float
+  unit           String
+  dispatchDate   DateTime @db.Date
+  receivedDate   DateTime? @db.Date
+  isReceived     Boolean  @default(false)
+  dispatchedBy   String? // Person name
+  receivedBy     String? // Person name
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  fromSite Site @relation("DispatchFrom", fields: [fromSiteId], references: [id], onDelete: Cascade)
+  toSite   Site @relation("DispatchTo", fields: [toSiteId], references: [id], onDelete: Cascade)
+
+  @@index([fromSiteId])
+  @@index([toSiteId])
+  @@index([dispatchDate])
+  @@index([isReceived])
+}
+
+// ============================================
+// MODULE 4: DAILY WORK UPDATE
+// ============================================
+
+// Daily progress updates with photos and videos
+model WorkUpdate {
+  id          String   @id @default(cuid())
+  siteId      String
+  date        DateTime @db.Date
+  description String   @db.Text
+  photoUrl    String? // Supabase Storage URL
+  videoUrl    String? // Google Drive link
+  createdBy   String? // User name or ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@index([date])
+}
+
+// ============================================
+// MODULE 5: OVERTIME MANAGEMENT
+// ============================================
+
+// Overtime hours and pay calculations for workers
+model Overtime {
+  id          String   @id @default(cuid())
+  workerId    String
+  siteId      String
+  date        DateTime @db.Date
+  extraHours  Float // Hours worked beyond standard
+  rate        Float // Rate per hour
+  totalAmount Float // Auto-calculated: extraHours * rate
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([workerId])
+  @@index([siteId])
+  @@index([date])
+}
+
+// ============================================
+// MODULE 6: PAYMENT RECORD
+// ============================================
+
+// Client payments tracking (Advance, During, Final)
+model Payment {
+  id              String      @id @default(cuid())
+  clientName      String
+  paymentType     PaymentType
+  amount          Float
+  paymentDate     DateTime    @db.Date
+  documentUrl     String? // Uploaded receipt/invoice (Supabase Storage)
+  projectName     String? // Optional project reference
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([clientName])
+  @@index([paymentDate])
+  @@index([paymentType])
+}
+
+// ============================================
+// MODULE 7: MISC EXPENSES
+// ============================================
+
+// Miscellaneous business expenses
+model Expense {
+  id          String          @id @default(cuid())
+  category    ExpenseCategory
+  amount      Float
+  description String
+  date        DateTime        @db.Date
+  billUrl     String? // Optional bill/receipt (Supabase Storage)
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([category])
+  @@index([date])
+}
+
+// ============================================
+// MODULE 8: PENDING WORK
+// ============================================
+
+// Track incomplete or pending tasks at sites
+model PendingWork {
+  id                      String            @id @default(cuid())
+  siteId                  String
+  taskDescription         String            @db.Text
+  reasonForPending        String            @db.Text
+  expectedCompletionDate  DateTime?         @db.Date
+  actualCompletionDate    DateTime?         @db.Date
+  status                  PendingWorkStatus @default(PENDING)
+  priority                String? // e.g., "High", "Medium", "Low"
+  assignedTo              String? // Worker or team name
+  notes                   String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+
+  // Relations
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@index([status])
+  @@index([expectedCompletionDate])
 }
 
