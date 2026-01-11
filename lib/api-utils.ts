@@ -2,17 +2,26 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 /**
- * API Response helper
+ * Standard API Response Type
  */
-export function apiResponse<T>(data: T, status = 200) {
-  return NextResponse.json(data, { status })
+export type ApiResponse<T = unknown> = {
+  success: boolean
+  data?: T
+  error?: string
+}
+
+/**
+ * API Response helper - Success
+ */
+export function apiSuccess<T>(data: T, status = 200): NextResponse<ApiResponse<T>> {
+  return NextResponse.json({ success: true, data }, { status })
 }
 
 /**
  * API Error response helper
  */
-export function apiError(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status })
+export function apiError(message: string, status = 400): NextResponse<ApiResponse> {
+  return NextResponse.json({ success: false, error: message }, { status })
 }
 
 /**
@@ -36,4 +45,11 @@ export async function validateRequest<T>(
     }
     return { success: false, error: 'Invalid request body' }
   }
+}
+
+/**
+ * Parse and convert date strings to Date objects
+ */
+export function parseDate(dateString: string | Date): Date {
+  return dateString instanceof Date ? dateString : new Date(dateString)
 }

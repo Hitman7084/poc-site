@@ -16,36 +16,37 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // TODO: Implement actual authentication logic
-        // This is a stub implementation for bootstrap phase
-        // Business logic will be implemented later when database is set up
-        
-        // Example implementation when ready:
-        // const user = await prisma.user.findUnique({
-        //   where: { email: credentials.email }
-        // })
-        
-        // if (!user || !user.password) {
-        //   return null
-        // }
-        
-        // const isPasswordValid = await bcrypt.compare(
-        //   credentials.password,
-        //   user.password
-        // )
-        
-        // if (!isPasswordValid) {
-        //   return null
-        // }
-        
-        // return {
-        //   id: user.id,
-        //   email: user.email,
-        //   name: user.name,
-        // }
-
-        // Stub return
-        return null
+        try {
+          // Find user by email
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email }
+          })
+          
+          if (!user || !user.password) {
+            return null
+          }
+          
+          // Verify password
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          )
+          
+          if (!isPasswordValid) {
+            return null
+          }
+          
+          // Return user object for session
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name || user.email,
+            role: user.role,
+          }
+        } catch (error) {
+          console.error('Authentication error:', error)
+          return null
+        }
       },
     }),
   ],
