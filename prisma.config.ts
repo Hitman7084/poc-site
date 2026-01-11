@@ -1,6 +1,7 @@
 // Prisma 7.x Configuration
-// https://pris.ly/d/prisma7-client-config
-import 'dotenv/config'
+import { config } from 'dotenv'
+
+config({ path: '.env.local' })
 
 export default {
   datasource: {
