@@ -13,10 +13,14 @@ async function fetchWorkUpdates(): Promise<WorkUpdateWithRelations[]> {
 }
 
 async function createWorkUpdate(data: WorkUpdateInput): Promise<WorkUpdateWithRelations> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+  };
   const response = await fetch('/api/work-updates', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<WorkUpdateWithRelations> = await response.json();
   if (!result.success || !result.data) {
@@ -26,10 +30,14 @@ async function createWorkUpdate(data: WorkUpdateInput): Promise<WorkUpdateWithRe
 }
 
 async function updateWorkUpdate(id: string, data: WorkUpdateInput): Promise<WorkUpdateWithRelations> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+  };
   const response = await fetch(`/api/work-updates/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<WorkUpdateWithRelations> = await response.json();
   if (!result.success || !result.data) {

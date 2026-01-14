@@ -13,10 +13,15 @@ async function fetchPendingWork(): Promise<PendingWorkWithRelations[]> {
 }
 
 async function createPendingWork(data: PendingWorkInput): Promise<PendingWorkWithRelations> {
+  const payload = {
+    ...data,
+    expectedCompletionDate: data.expectedCompletionDate ? new Date(data.expectedCompletionDate).toISOString() : undefined,
+    actualCompletionDate: data.actualCompletionDate ? new Date(data.actualCompletionDate).toISOString() : undefined,
+  };
   const response = await fetch('/api/pending-work', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<PendingWorkWithRelations> = await response.json();
   if (!result.success || !result.data) {
@@ -26,10 +31,15 @@ async function createPendingWork(data: PendingWorkInput): Promise<PendingWorkWit
 }
 
 async function updatePendingWork(id: string, data: PendingWorkInput): Promise<PendingWorkWithRelations> {
+  const payload = {
+    ...data,
+    expectedCompletionDate: data.expectedCompletionDate ? new Date(data.expectedCompletionDate).toISOString() : undefined,
+    actualCompletionDate: data.actualCompletionDate ? new Date(data.actualCompletionDate).toISOString() : undefined,
+  };
   const response = await fetch(`/api/pending-work/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<PendingWorkWithRelations> = await response.json();
   if (!result.success || !result.data) {

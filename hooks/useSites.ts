@@ -13,10 +13,17 @@ async function fetchSites(): Promise<Site[]> {
 }
 
 async function createSite(data: SiteInput): Promise<Site> {
+  // Convert date strings to ISO datetime format
+  const payload = {
+    ...data,
+    startDate: data.startDate ? new Date(data.startDate).toISOString() : undefined,
+    endDate: data.endDate ? new Date(data.endDate).toISOString() : undefined,
+  };
+  
   const response = await fetch('/api/sites', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<Site> = await response.json();
   if (!result.success || !result.data) {
@@ -26,10 +33,17 @@ async function createSite(data: SiteInput): Promise<Site> {
 }
 
 async function updateSite(id: string, data: SiteInput): Promise<Site> {
+  // Convert date strings to ISO datetime format
+  const payload = {
+    ...data,
+    startDate: data.startDate ? new Date(data.startDate).toISOString() : undefined,
+    endDate: data.endDate ? new Date(data.endDate).toISOString() : undefined,
+  };
+  
   const response = await fetch(`/api/sites/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<Site> = await response.json();
   if (!result.success || !result.data) {

@@ -13,10 +13,16 @@ async function fetchAttendance(): Promise<AttendanceWithRelations[]> {
 }
 
 async function createAttendance(data: AttendanceInput): Promise<AttendanceWithRelations> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+    checkIn: data.checkIn ? new Date(data.checkIn).toISOString() : undefined,
+    checkOut: data.checkOut ? new Date(data.checkOut).toISOString() : undefined,
+  };
   const response = await fetch('/api/attendance', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<AttendanceWithRelations> = await response.json();
   if (!result.success || !result.data) {
@@ -26,10 +32,16 @@ async function createAttendance(data: AttendanceInput): Promise<AttendanceWithRe
 }
 
 async function updateAttendance(id: string, data: AttendanceInput): Promise<AttendanceWithRelations> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+    checkIn: data.checkIn ? new Date(data.checkIn).toISOString() : undefined,
+    checkOut: data.checkOut ? new Date(data.checkOut).toISOString() : undefined,
+  };
   const response = await fetch(`/api/attendance/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<AttendanceWithRelations> = await response.json();
   if (!result.success || !result.data) {

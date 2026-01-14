@@ -13,10 +13,14 @@ async function fetchPayments(): Promise<Payment[]> {
 }
 
 async function createPayment(data: PaymentInput): Promise<Payment> {
+  const payload = {
+    ...data,
+    paymentDate: new Date(data.paymentDate).toISOString(),
+  };
   const response = await fetch('/api/payments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<Payment> = await response.json();
   if (!result.success || !result.data) {
@@ -26,10 +30,14 @@ async function createPayment(data: PaymentInput): Promise<Payment> {
 }
 
 async function updatePayment(id: string, data: PaymentInput): Promise<Payment> {
+  const payload = {
+    ...data,
+    paymentDate: new Date(data.paymentDate).toISOString(),
+  };
   const response = await fetch(`/api/payments/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<Payment> = await response.json();
   if (!result.success || !result.data) {

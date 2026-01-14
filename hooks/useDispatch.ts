@@ -13,10 +13,15 @@ async function fetchDispatches(): Promise<DispatchWithRelations[]> {
 }
 
 async function createDispatch(data: DispatchInput): Promise<DispatchWithRelations> {
+  const payload = {
+    ...data,
+    dispatchDate: new Date(data.dispatchDate).toISOString(),
+    receivedDate: data.receivedDate ? new Date(data.receivedDate).toISOString() : undefined,
+  };
   const response = await fetch('/api/dispatch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<DispatchWithRelations> = await response.json();
   if (!result.success || !result.data) {
@@ -26,10 +31,15 @@ async function createDispatch(data: DispatchInput): Promise<DispatchWithRelation
 }
 
 async function updateDispatch(id: string, data: DispatchInput): Promise<DispatchWithRelations> {
+  const payload = {
+    ...data,
+    dispatchDate: new Date(data.dispatchDate).toISOString(),
+    receivedDate: data.receivedDate ? new Date(data.receivedDate).toISOString() : undefined,
+  };
   const response = await fetch(`/api/dispatch/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<DispatchWithRelations> = await response.json();
   if (!result.success || !result.data) {

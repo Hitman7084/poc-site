@@ -13,10 +13,14 @@ async function fetchOvertime(): Promise<OvertimeWithRelations[]> {
 }
 
 async function createOvertime(data: OvertimeInput): Promise<OvertimeWithRelations> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+  };
   const response = await fetch('/api/overtime', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<OvertimeWithRelations> = await response.json();
   if (!result.success || !result.data) {
@@ -26,10 +30,14 @@ async function createOvertime(data: OvertimeInput): Promise<OvertimeWithRelation
 }
 
 async function updateOvertime(id: string, data: OvertimeInput): Promise<OvertimeWithRelations> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+  };
   const response = await fetch(`/api/overtime/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<OvertimeWithRelations> = await response.json();
   if (!result.success || !result.data) {

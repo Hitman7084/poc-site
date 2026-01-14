@@ -13,10 +13,14 @@ async function fetchMaterials(): Promise<MaterialWithRelations[]> {
 }
 
 async function createMaterial(data: MaterialInput): Promise<MaterialWithRelations> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+  };
   const response = await fetch('/api/materials', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<MaterialWithRelations> = await response.json();
   if (!result.success || !result.data) {
@@ -26,10 +30,14 @@ async function createMaterial(data: MaterialInput): Promise<MaterialWithRelation
 }
 
 async function updateMaterial(id: string, data: MaterialInput): Promise<MaterialWithRelations> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+  };
   const response = await fetch(`/api/materials/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<MaterialWithRelations> = await response.json();
   if (!result.success || !result.data) {

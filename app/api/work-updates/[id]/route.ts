@@ -86,12 +86,6 @@ export async function DELETE(
 
     const { id } = await params
 
-    // TODO: Delete associated photo from Supabase if photoUrl exists
-    // const workUpdate = await prisma.workUpdate.findUnique({ where: { id } })
-    // if (workUpdate?.photoUrl) {
-    //   // Delete from Supabase storage
-    // }
-
     const workUpdate = await prisma.workUpdate.delete({
       where: { id },
     })

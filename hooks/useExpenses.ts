@@ -13,10 +13,14 @@ async function fetchExpenses(): Promise<Expense[]> {
 }
 
 async function createExpense(data: ExpenseInput): Promise<Expense> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+  };
   const response = await fetch('/api/expenses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<Expense> = await response.json();
   if (!result.success || !result.data) {
@@ -26,10 +30,14 @@ async function createExpense(data: ExpenseInput): Promise<Expense> {
 }
 
 async function updateExpense(id: string, data: ExpenseInput): Promise<Expense> {
+  const payload = {
+    ...data,
+    date: new Date(data.date).toISOString(),
+  };
   const response = await fetch(`/api/expenses/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const result: ApiResponse<Expense> = await response.json();
   if (!result.success || !result.data) {
