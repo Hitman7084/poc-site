@@ -200,7 +200,7 @@ model WorkUpdate {
   siteId      String
   date        DateTime @db.Date
   description String   @db.Text
-  photoUrl    String? // Supabase Storage URL
+  photoUrl    String? // Google Drive link
   videoUrl    String? // Google Drive link
   createdBy   String? // User name or ID
   createdAt   DateTime @default(now())
@@ -250,7 +250,7 @@ model Payment {
   paymentType     PaymentType
   amount          Float
   paymentDate     DateTime    @db.Date
-  documentUrl     String? // Uploaded receipt/invoice (Supabase Storage)
+  documentUrl     String? // Receipt/invoice (Google Drive link)
   projectName     String? // Optional project reference
   notes           String?
   createdAt       DateTime    @default(now())
@@ -272,7 +272,7 @@ model Expense {
   amount      Float
   description String
   date        DateTime        @db.Date
-  billUrl     String? // Optional bill/receipt (Supabase Storage)
+  billUrl     String? // Bill/receipt (Google Drive link)
   notes       String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
