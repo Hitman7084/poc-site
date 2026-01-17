@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Pencil, Trash2, Clock } from 'lucide-react';
 import {
   useOvertime,
@@ -8,8 +8,8 @@ import {
   useUpdateOvertime,
   useDeleteOvertime,
 } from '@/hooks/useOvertime';
-import { useWorkers } from '@/hooks/useWorkers';
-import { useSites } from '@/hooks/useSites';
+import { useWorkers, useAllWorkers } from '@/hooks/useWorkers';
+import { useAllSites } from '@/hooks/useSites';
 import type { OvertimeInput, OvertimeWithRelations } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -22,8 +22,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
+import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
+import { exportToExcel, formatDate, formatCurrency } from '@/lib/export-utils';
+import { Pagination } from '@/components/Pagination';
+import { toast } from 'sonner';
 
 export default function OvertimePage() {
+  const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOvertime, setEditingOvertime] = useState<OvertimeWithRelations | null>(null);
   const [formData, setFormData] = useState<OvertimeInput>({
@@ -35,9 +40,11 @@ export default function OvertimePage() {
     notes: '',
   });
 
-  const { data: overtime, isLoading, error, refetch } = useOvertime();
-  const { data: workers } = useWorkers();
-  const { data: sites } = useSites();
+  const { data: overtimeData, isLoading, error, refetch } = useOvertime(page);
+  const overtime = overtimeData?.data ?? [];
+  const pagination = overtimeData?.pagination;
+  const { data: workers } = useAllWorkers();
+  const { data: sites } = useAllSites();
   const createMutation = useCreateOvertime();
   const updateMutation = useUpdateOvertime();
   const deleteMutation = useDeleteOvertime();
@@ -99,6 +106,37 @@ export default function OvertimePage() {
     }
   };
 
+  // Handle export
+  const handleExport = async (filters: ExportFilters) => {
+    if (!overtime) return;
+
+    let dataToExport = [...overtime];
+
+    // Apply date range filter
+    dataToExport = filterByDateRange(
+      dataToExport,
+      (o) => o.date,
+      filters.fromDate,
+      filters.toDate
+    );
+
+    await exportToExcel(dataToExport, {
+      filename: 'overtime_records',
+      sheetName: 'Overtime',
+      columns: [
+        { header: 'Date', accessor: (o) => formatDate(o.date) },
+        { header: 'Worker', accessor: (o) => o.worker.name },
+        { header: 'Site', accessor: (o) => o.site.name },
+        { header: 'Extra Hours', accessor: 'extraHours' },
+        { header: 'Rate/Hour', accessor: (o) => formatCurrency(o.rate) },
+        { header: 'Total Amount', accessor: (o) => formatCurrency(o.totalAmount) },
+        { header: 'Notes', accessor: (o) => o.notes || '' },
+        { header: 'Created At', accessor: (o) => formatDate(o.createdAt) },
+      ],
+    });
+    toast.success(`Exported ${dataToExport.length} overtime records to Excel`);
+  };
+
   if (isLoading) return <LoadingState message="Loading overtime records..." />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
@@ -120,6 +158,12 @@ export default function OvertimePage() {
         </Button>
       </div>
 
+      {/* Export Section */}
+      <ExportToExcel
+        showSiteFilter={false}
+        onExport={handleExport}
+      />
+
       {!overtime || overtime.length === 0 ? (
         <Card className="p-12">
           <EmptyState
@@ -133,6 +177,7 @@ export default function OvertimePage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">S.No</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Worker</TableHead>
                 <TableHead>Site</TableHead>
@@ -143,8 +188,9 @@ export default function OvertimePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {overtime.map((record) => (
+              {overtime.map((record, index) => (
                 <TableRow key={record.id}>
+                  <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -171,6 +217,14 @@ export default function OvertimePage() {
             </TableBody>
           </Table>
         </Card>
+      )}
+
+      {pagination && (
+        <Pagination
+          pagination={pagination}
+          onPageChange={setPage}
+          isLoading={isLoading}
+        />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Truck, CheckCircle, XCircle, Calendar, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   useDispatches,
   useCreateDispatch,
   useUpdateDispatch,
   useDeleteDispatch,
 } from '@/hooks/useDispatch';
-import { useSites } from '@/hooks/useSites';
+import { useAllSites } from '@/hooks/useSites';
+import { useHydrated } from '@/hooks/useHydration';
 import type { DispatchInput, DispatchWithRelations, Site } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,11 +26,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
-import { cn } from '@/lib/utils';
+import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
+import { exportToExcel, formatDate, formatBoolean } from '@/lib/export-utils';
+import { Pagination } from '@/components/Pagination';
 import { format, isWithinInterval, startOfDay, isSameDay } from 'date-fns';
 
 export default function DispatchPage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const isHydrated = useHydrated();
+  const [page, setPage] = useState(1);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [calendarOpen, setCalendarOpen] = useState<boolean>(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -39,7 +45,7 @@ export default function DispatchPage() {
     materialName: '',
     quantity: 0,
     unit: '',
-    dispatchDate: new Date().toISOString().split('T')[0],
+    dispatchDate: '',
     receivedDate: '',
     isReceived: false,
     dispatchedBy: '',
@@ -47,18 +53,32 @@ export default function DispatchPage() {
     notes: '',
   });
 
-  const { data: dispatches, isLoading, error, refetch } = useDispatches();
-  const { data: sites, isLoading: isLoadingSites } = useSites();
+  const { data, isLoading, error, refetch } = useDispatches(page);
+  const dispatches = data?.data;
+  const pagination = data?.pagination;
+  const { data: sites, isLoading: isLoadingSites } = useAllSites();
   const createMutation = useCreateDispatch();
   const updateMutation = useUpdateDispatch();
   const deleteMutation = useDeleteDispatch();
 
-  const dateString = format(selectedDate, 'yyyy-MM-dd');
-  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+  // Initialize date after hydration to avoid mismatch
+  useEffect(() => {
+    if (isHydrated && !selectedDate) {
+      const today = new Date();
+      setSelectedDate(today);
+      setFormData(prev => ({
+        ...prev,
+        dispatchDate: today.toISOString().split('T')[0]
+      }));
+    }
+  }, [isHydrated, selectedDate]);
+
+  const dateString = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
+  const isToday = selectedDate ? format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') : false;
 
   // Filter sites to only show active sites that are within the date range
   const activeSitesForDate = useMemo(() => {
-    if (!sites) return [];
+    if (!sites || !selectedDate) return [];
     
     const selectedDay = startOfDay(selectedDate);
     
@@ -85,7 +105,7 @@ export default function DispatchPage() {
 
   // Filter dispatches by selected date and site
   const filteredDispatches = useMemo(() => {
-    if (!dispatches) return [];
+    if (!dispatches || !selectedDate) return [];
     
     return dispatches.filter(d => {
       const dispatchDate = startOfDay(new Date(d.dispatchDate));
@@ -100,21 +120,48 @@ export default function DispatchPage() {
     });
   }, [dispatches, selectedDate, selectedSite]);
 
-  // Count dispatches per site for the selected date
-  const getDispatchCountForSite = (siteId: string) => {
-    if (!dispatches) return { from: 0, to: 0 };
-    
-    const from = dispatches.filter(d => {
-      const dispatchDate = startOfDay(new Date(d.dispatchDate));
-      return isSameDay(dispatchDate, startOfDay(selectedDate)) && d.fromSiteId === siteId;
-    }).length;
-    
-    const to = dispatches.filter(d => {
-      const dispatchDate = startOfDay(new Date(d.dispatchDate));
-      return isSameDay(dispatchDate, startOfDay(selectedDate)) && d.toSiteId === siteId;
-    }).length;
-    
-    return { from, to };
+  // Handle export
+  const handleExport = async (filters: ExportFilters) => {
+    if (!dispatches) return;
+
+    let dataToExport = [...dispatches];
+
+    // Apply date range filter
+    dataToExport = filterByDateRange(
+      dataToExport,
+      (d) => d.dispatchDate,
+      filters.fromDate,
+      filters.toDate
+    );
+
+    // Apply site filter
+    if (filters.selectedSiteIds.length > 0) {
+      dataToExport = dataToExport.filter(
+        (d) =>
+          filters.selectedSiteIds.includes(d.fromSiteId) ||
+          filters.selectedSiteIds.includes(d.toSiteId)
+      );
+    }
+
+    await exportToExcel(dataToExport, {
+      filename: 'dispatch_records',
+      sheetName: 'Dispatches',
+      columns: [
+        { header: 'Dispatch Date', accessor: (d) => formatDate(d.dispatchDate) },
+        { header: 'From Site', accessor: (d) => d.fromSite.name },
+        { header: 'To Site', accessor: (d) => d.toSite.name },
+        { header: 'Material Name', accessor: 'materialName' },
+        { header: 'Quantity', accessor: 'quantity' },
+        { header: 'Unit', accessor: 'unit' },
+        { header: 'Received', accessor: (d) => formatBoolean(d.isReceived) },
+        { header: 'Received Date', accessor: (d) => formatDate(d.receivedDate) },
+        { header: 'Dispatched By', accessor: (d) => d.dispatchedBy || '' },
+        { header: 'Received By', accessor: (d) => d.receivedBy || '' },
+        { header: 'Notes', accessor: (d) => d.notes || '' },
+        { header: 'Created At', accessor: (d) => formatDate(d.createdAt) },
+      ],
+    });
+    toast.success(`Exported ${dataToExport.length} dispatch records to Excel`);
   };
 
   const handleOpenDialog = (dispatch?: DispatchWithRelations) => {
@@ -187,6 +234,7 @@ export default function DispatchPage() {
 
   const handlePreviousDay = () => {
     setSelectedDate(prev => {
+      if (!prev) return prev;
       const newDate = new Date(prev);
       newDate.setDate(newDate.getDate() - 1);
       return newDate;
@@ -195,231 +243,181 @@ export default function DispatchPage() {
 
   const handleNextDay = () => {
     setSelectedDate(prev => {
+      if (!prev) return prev;
       const newDate = new Date(prev);
       newDate.setDate(newDate.getDate() + 1);
       return newDate;
     });
   };
 
-  if (isLoading || isLoadingSites) return <LoadingState message="Loading dispatches..." />;
+  if (isLoading || isLoadingSites || !selectedDate) return <LoadingState message="Loading dispatches..." />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
   return (
-    <div className="space-y-6">
-      {/* Header with Calendar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-orange-500/10 rounded-xl">
-            <Truck className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+    <div className="space-y-4">
+      {/* Header Row - Title + Date + Site Filter + New Button */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-orange-500/10 rounded-lg">
+            <Truck className="h-5 w-5 text-orange-600 dark:text-orange-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Dispatch</h1>
-            <p className="text-sm text-muted-foreground">Track material transfers between sites</p>
+            <h1 className="text-xl font-semibold">Dispatch</h1>
+            <p className="text-xs text-muted-foreground">Track material transfers between sites</p>
           </div>
         </div>
         
-        {/* Date Navigation */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handlePreviousDay} className="shadow-sm">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="min-w-[200px] justify-start text-left font-normal shadow-sm">
-                <Calendar className="mr-2 h-4 w-4" />
-                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-                {isToday && <Badge variant="secondary" className="ml-2">Today</Badge>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <CalendarComponent
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => {
-                  if (date) {
-                    setSelectedDate(date);
-                    setCalendarOpen(false);
-                  }
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-          
-          <Button variant="outline" size="icon" onClick={handleNextDay} className="shadow-sm">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+        {/* Controls Row */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Date Navigation */}
+          <div className="flex items-center">
+            <Button variant="outline" size="icon" onClick={handlePreviousDay} className="h-8 w-8 rounded-r-none border-r-0">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-8 min-w-[160px] rounded-none text-sm font-normal">
+                  <Calendar className="mr-2 h-3.5 w-3.5" />
+                  {format(selectedDate, 'MMM d, yyyy')}
+                  {isToday && <Badge variant="secondary" className="ml-2 h-5 text-[10px]">Today</Badge>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center">
+                <CalendarComponent
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      setSelectedDate(date);
+                      setCalendarOpen(false);
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <Button variant="outline" size="icon" onClick={handleNextDay} className="h-8 w-8 rounded-l-none border-l-0">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
 
-      {/* Sites Grid */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Active Sites for {format(selectedDate, 'MMMM d, yyyy')}</h2>
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="mr-2 h-4 w-4" />
+          {/* Site Filter Dropdown */}
+          <Select 
+            value={selectedSite?.id || 'all'} 
+            onValueChange={(value) => setSelectedSite(value === 'all' ? null : activeSitesForDate.find(s => s.id === value) || null)}
+          >
+            <SelectTrigger className="h-8 w-[180px] text-sm">
+              <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Sites" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sites</SelectItem>
+              {activeSitesForDate.map((site) => (
+                <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button onClick={() => handleOpenDialog()} size="sm" className="h-8">
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
             New Dispatch
           </Button>
         </div>
-        
-        {activeSitesForDate.length === 0 ? (
-          <Card className="p-12">
-            <EmptyState
-              title="No active sites for this date"
-              description="There are no sites scheduled to be active on this date. Check the site schedules or select a different date."
-            />
-          </Card>
-        ) : (
-          <>
-            {/* All Sites Option */}
-            <div className="mb-4">
-              <Button
-                variant={selectedSite === null ? "default" : "outline"}
-                onClick={() => setSelectedSite(null)}
-                className="mr-2"
-              >
-                All Sites
-              </Button>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {activeSitesForDate.map((site) => {
-                const dispatchCounts = getDispatchCountForSite(site.id);
-                const totalDispatches = dispatchCounts.from + dispatchCounts.to;
-                const isSelected = selectedSite?.id === site.id;
-                
-                return (
-                  <Card
-                    key={site.id}
-                    className={cn(
-                      "cursor-pointer transition-all hover:shadow-md",
-                      isSelected && "ring-2 ring-primary border-primary"
-                    )}
-                    onClick={() => setSelectedSite(site)}
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={cn(
-                            "p-2 rounded-lg",
-                            isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
-                          )}>
-                            <MapPin className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <CardTitle className="text-base">{site.name}</CardTitle>
-                            {site.location && (
-                              <CardDescription className="text-xs">{site.location}</CardDescription>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Truck className="h-4 w-4" />
-                          <span>{totalDispatches} dispatch{totalDispatches !== 1 ? 'es' : ''}</span>
-                        </div>
-                        {totalDispatches > 0 && (
-                          <div className="flex gap-1">
-                            <Badge variant="secondary" className="text-xs">
-                              ↑{dispatchCounts.from}
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              ↓{dispatchCounts.to}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                      {site.startDate && site.endDate && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {format(new Date(site.startDate), 'MMM d')} - {format(new Date(site.endDate), 'MMM d, yyyy')}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </>
-        )}
       </div>
+
+      {/* Export Section - Compact */}
+      <ExportToExcel
+        sites={sites}
+        showSiteFilter={true}
+        onExport={handleExport}
+      />
 
       {/* Dispatches Table */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Truck className="h-5 w-5" />
-            Dispatches for {format(selectedDate, 'MMMM d, yyyy')}
-            {selectedSite && <Badge variant="outline">{selectedSite.name}</Badge>}
-          </CardTitle>
-          <CardDescription>
-            {filteredDispatches.length} dispatch record{filteredDispatches.length !== 1 ? 's' : ''} found
-          </CardDescription>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                Dispatches
+                {selectedSite && <Badge variant="outline" className="font-normal">{selectedSite.name}</Badge>}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {filteredDispatches.length} record{filteredDispatches.length !== 1 ? 's' : ''} for {format(selectedDate, 'MMM d, yyyy')}
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {filteredDispatches.length === 0 ? (
             <EmptyState
-              title="No dispatch records found"
+              title="No dispatch records"
               description={selectedSite 
                 ? `No dispatches for ${selectedSite.name} on this date` 
                 : "No dispatches recorded for this date"}
               action={
-                <Button onClick={() => handleOpenDialog()}>
-                  <Plus className="mr-2 h-4 w-4" />
+                <Button onClick={() => handleOpenDialog()} size="sm">
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
                   New Dispatch
                 </Button>
               }
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Material</TableHead>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredDispatches.map((dispatch) => (
-                  <TableRow key={dispatch.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <Truck className="h-4 w-4 text-muted-foreground" />
-                        {dispatch.materialName}
-                      </div>
-                    </TableCell>
-                    <TableCell>{dispatch.fromSite.name}</TableCell>
-                    <TableCell>{dispatch.toSite.name}</TableCell>
-                    <TableCell>{dispatch.quantity} {dispatch.unit}</TableCell>
-                    <TableCell>
-                      <Badge variant={dispatch.isReceived ? 'default' : 'secondary'}>
-                        {dispatch.isReceived ? (
-                          <><CheckCircle className="mr-1 h-3 w-3" />Received</>
-                        ) : (
-                          <><XCircle className="mr-1 h-3 w-3" />Pending</>
-                        )}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(dispatch)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(dispatch.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="h-9 text-xs w-12">S.No</TableHead>
+                    <TableHead className="h-9 text-xs">Material</TableHead>
+                    <TableHead className="h-9 text-xs">From</TableHead>
+                    <TableHead className="h-9 text-xs">To</TableHead>
+                    <TableHead className="h-9 text-xs">Qty</TableHead>
+                    <TableHead className="h-9 text-xs">Status</TableHead>
+                    <TableHead className="h-9 text-xs text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredDispatches.map((dispatch, index) => (
+                    <TableRow key={dispatch.id}>
+                      <TableCell className="py-2 text-sm text-muted-foreground">
+                        {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
+                      </TableCell>
+                      <TableCell className="py-2 font-medium text-sm">{dispatch.materialName}</TableCell>
+                      <TableCell className="py-2 text-sm text-muted-foreground">{dispatch.fromSite.name}</TableCell>
+                      <TableCell className="py-2 text-sm text-muted-foreground">{dispatch.toSite.name}</TableCell>
+                      <TableCell className="py-2 text-sm">{dispatch.quantity} {dispatch.unit}</TableCell>
+                      <TableCell className="py-2">
+                        <Badge variant={dispatch.isReceived ? 'default' : 'secondary'} className="text-xs h-5">
+                          {dispatch.isReceived ? (
+                            <><CheckCircle className="mr-1 h-3 w-3" />Received</>
+                          ) : (
+                            <><XCircle className="mr-1 h-3 w-3" />Pending</>
+                          )}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2 text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDialog(dispatch)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(dispatch.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {pagination && (
+            <Pagination
+              pagination={pagination}
+              onPageChange={setPage}
+              isLoading={isLoading}
+            />
           )}
         </CardContent>
       </Card>

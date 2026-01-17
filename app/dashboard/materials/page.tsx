@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, Package } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   useMaterials,
   useCreateMaterial,
   useUpdateMaterial,
   useDeleteMaterial,
 } from '@/hooks/useMaterials';
-import { useSites } from '@/hooks/useSites';
+import { useAllSites } from '@/hooks/useSites';
 import type { MaterialInput, MaterialWithRelations } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -41,8 +42,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
+import { ExportToExcel, filterByDateRange, filterBySites, type ExportFilters } from '@/components/ExportToExcel';
+import { exportToExcel, formatDate, formatCurrency } from '@/lib/export-utils';
+import { Pagination } from '@/components/Pagination';
 
 export default function MaterialsPage() {
+  const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<MaterialWithRelations | null>(null);
   const [formData, setFormData] = useState<MaterialInput>({
@@ -56,8 +61,10 @@ export default function MaterialsPage() {
     notes: '',
   });
 
-  const { data: materials, isLoading, error, refetch } = useMaterials();
-  const { data: sites } = useSites();
+  const { data, isLoading, error, refetch } = useMaterials(page);
+  const materials = data?.data;
+  const pagination = data?.pagination;
+  const { data: sites } = useAllSites();
   const createMutation = useCreateMaterial();
   const updateMutation = useUpdateMaterial();
   const deleteMutation = useDeleteMaterial();
@@ -128,6 +135,45 @@ export default function MaterialsPage() {
     }
   };
 
+  // Handle export
+  const handleExport = async (filters: ExportFilters) => {
+    if (!materials) return;
+
+    let dataToExport = [...materials];
+
+    // Apply date range filter
+    dataToExport = filterByDateRange(
+      dataToExport,
+      (m) => m.date,
+      filters.fromDate,
+      filters.toDate
+    );
+
+    // Apply site filter
+    dataToExport = filterBySites(
+      dataToExport,
+      (m) => m.siteId,
+      filters.selectedSiteIds
+    );
+
+    await exportToExcel(dataToExport, {
+      filename: 'materials_records',
+      sheetName: 'Materials',
+      columns: [
+        { header: 'Date', accessor: (m) => formatDate(m.date) },
+        { header: 'Material Name', accessor: 'materialName' },
+        { header: 'Site', accessor: (m) => m.site.name },
+        { header: 'Quantity', accessor: 'quantity' },
+        { header: 'Unit', accessor: 'unit' },
+        { header: 'Cost', accessor: (m) => m.cost ? formatCurrency(m.cost) : '' },
+        { header: 'Supplier Name', accessor: (m) => m.supplierName || '' },
+        { header: 'Notes', accessor: (m) => m.notes || '' },
+        { header: 'Created At', accessor: (m) => formatDate(m.createdAt) },
+      ],
+    });
+    toast.success(`Exported ${dataToExport.length} material records to Excel`);
+  };
+
   if (isLoading) return <LoadingState message="Loading materials..." />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
@@ -149,6 +195,13 @@ export default function MaterialsPage() {
         </Button>
       </div>
 
+      {/* Export Section */}
+      <ExportToExcel
+        sites={sites}
+        showSiteFilter={true}
+        onExport={handleExport}
+      />
+
       {!materials || materials.length === 0 ? (
         <Card className="p-12">
           <EmptyState
@@ -167,6 +220,7 @@ export default function MaterialsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">S.No</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Material</TableHead>
                 <TableHead>Site</TableHead>
@@ -177,8 +231,11 @@ export default function MaterialsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {materials.map((material) => (
+              {materials.map((material, index) => (
                 <TableRow key={material.id}>
+                  <TableCell className="text-muted-foreground">
+                    {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
+                  </TableCell>
                   <TableCell>{new Date(material.date).toLocaleDateString()}</TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -216,6 +273,13 @@ export default function MaterialsPage() {
               ))}
             </TableBody>
           </Table>
+          {pagination && (
+            <Pagination
+              pagination={pagination}
+              onPageChange={setPage}
+              isLoading={isLoading}
+            />
+          )}
         </Card>
       )}
 
