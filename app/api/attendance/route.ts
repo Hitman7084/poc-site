@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
 import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
 import { createAttendanceSchema } from '@/lib/validations/attendance'
+import { AttendanceStatus } from '@/lib/types'
 
 // GET /api/attendance - Fetch all attendance records (with optional filters)
 export async function GET(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
         ...(workerId && { workerId }),
         ...(siteId && { siteId }),
         ...(date && { date: parseDate(date) }),
-        ...(status && { status: status as any }),
+        ...(status && { status: status as AttendanceStatus }),
       },
       include: {
         worker: { select: { id: true, name: true } },

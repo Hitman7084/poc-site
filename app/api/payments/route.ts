@@ -2,10 +2,11 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate } from '@/lib/api-utils'
 import { createPaymentSchema } from '@/lib/validations/payments'
+import { PaymentType } from '@/lib/types'
 
-// GET /api/payments - Fetch all payment records
+// GET /api/payments - Fetch payment records with pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,16 +17,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const clientName = searchParams.get('clientName')
     const paymentType = searchParams.get('paymentType')
+    const { page, limit, skip } = parsePaginationParams(searchParams)
 
-    const records = await prisma.payment.findMany({
-      where: {
-        ...(clientName && { clientName: { contains: clientName, mode: 'insensitive' } }),
-        ...(paymentType && { paymentType: paymentType as any }),
-      },
-      orderBy: { paymentDate: 'desc' },
+    const where = {
+      ...(clientName && { clientName: { contains: clientName, mode: 'insensitive' as const } }),
+      ...(paymentType && { paymentType: paymentType as PaymentType }),
+    }
+
+    const [records, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        orderBy: { paymentDate: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.payment.count({ where }),
+    ])
+
+    return apiPaginated(records, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     })
-
-    return apiSuccess(records)
   } catch (error) {
     console.error('GET /api/payments error:', error)
     return apiError('Failed to fetch payment records', 500)

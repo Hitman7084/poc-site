@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, validateRequest, parseDate, isNotFoundError } from '@/lib/api-utils'
 import { updatePaymentSchema } from '@/lib/validations/payments'
 
 // GET /api/payments/[id]
@@ -69,7 +69,7 @@ export async function PUT(
     return apiSuccess(payment)
   } catch (error) {
     console.error('PUT /api/payments/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Payment not found', 404)
     }
     return apiError('Failed to update payment record', 500)
@@ -96,7 +96,7 @@ export async function DELETE(
     return apiSuccess(payment)
   } catch (error) {
     console.error('DELETE /api/payments/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Payment not found', 404)
     }
     return apiError('Failed to delete payment record', 500)

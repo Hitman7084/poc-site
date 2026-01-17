@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest } from '@/lib/api-utils'
 import { createSiteSchema } from '@/lib/validations/sites'
 
-// GET /api/sites - Fetch all sites
+// GET /api/sites - Fetch sites with pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,16 +16,39 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const isActive = searchParams.get('isActive')
     const name = searchParams.get('name')
+    const all = searchParams.get('all') // For dropdowns - fetch all without pagination
+    const { page, limit, skip } = parsePaginationParams(searchParams)
 
-    const sites = await prisma.site.findMany({
-      where: {
-        ...(isActive !== null && { isActive: isActive === 'true' }),
-        ...(name && { name: { contains: name, mode: 'insensitive' } }),
-      },
-      orderBy: { name: 'asc' },
+    const where = {
+      ...(isActive !== null && { isActive: isActive === 'true' }),
+      ...(name && { name: { contains: name, mode: 'insensitive' as const } }),
+    }
+
+    // If 'all' param is present, return all sites without pagination (for dropdowns)
+    if (all === 'true') {
+      const sites = await prisma.site.findMany({
+        where,
+        orderBy: { name: 'asc' },
+      })
+      return apiSuccess(sites)
+    }
+
+    const [sites, total] = await Promise.all([
+      prisma.site.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.site.count({ where }),
+    ])
+
+    return apiPaginated(sites, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     })
-
-    return apiSuccess(sites)
   } catch (error) {
     console.error('GET /api/sites error:', error)
     return apiError('Failed to fetch sites', 500)

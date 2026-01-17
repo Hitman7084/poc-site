@@ -1,15 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Payment, PaymentInput, ApiResponse } from '@/lib/types';
+import type { Payment, PaymentInput, PaginatedResponse } from '@/lib/types';
+import type { PaginationInfo } from '@/components/Pagination';
 
 const QUERY_KEY = 'payments';
 
-async function fetchPayments(): Promise<Payment[]> {
-  const response = await fetch('/api/payments');
-  const result: ApiResponse<Payment[]> = await response.json();
+export type PaginatedPayments = {
+  data: Payment[];
+  pagination: PaginationInfo;
+};
+
+async function fetchPayments(page: number = 1, limit: number = 10): Promise<PaginatedPayments> {
+  const response = await fetch(`/api/payments?page=${page}&limit=${limit}`);
+  const result: PaginatedResponse<Payment> = await response.json();
   if (!result.success || !result.data) {
-    throw new Error(result.error || 'Failed to fetch payments');
+    throw new Error('Failed to fetch payments');
   }
-  return result.data;
+  return {
+    data: result.data,
+    pagination: result.pagination,
+  };
 }
 
 async function createPayment(data: PaymentInput): Promise<Payment> {
@@ -22,7 +31,7 @@ async function createPayment(data: PaymentInput): Promise<Payment> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const result: ApiResponse<Payment> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to create payment');
   }
@@ -39,7 +48,7 @@ async function updatePayment(id: string, data: PaymentInput): Promise<Payment> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const result: ApiResponse<Payment> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to update payment');
   }
@@ -50,16 +59,16 @@ async function deletePayment(id: string): Promise<void> {
   const response = await fetch(`/api/payments/${id}`, {
     method: 'DELETE',
   });
-  const result: ApiResponse<void> = await response.json();
+  const result = await response.json();
   if (!result.success) {
     throw new Error(result.error || 'Failed to delete payment');
   }
 }
 
-export function usePayments() {
+export function usePayments(page: number = 1, limit: number = 10) {
   return useQuery({
-    queryKey: [QUERY_KEY],
-    queryFn: fetchPayments,
+    queryKey: [QUERY_KEY, page, limit],
+    queryFn: () => fetchPayments(page, limit),
   });
 }
 

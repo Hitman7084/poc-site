@@ -2,10 +2,11 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate } from '@/lib/api-utils'
 import { createExpenseSchema } from '@/lib/validations/expenses'
+import { ExpenseCategory } from '@/lib/types'
 
-// GET /api/expenses - Fetch all expense records
+// GET /api/expenses - Fetch expense records with pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -17,21 +18,34 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const { page, limit, skip } = parsePaginationParams(searchParams)
 
-    const records = await prisma.expense.findMany({
-      where: {
-        ...(category && { category: category as any }),
-        ...(startDate && endDate && {
-          date: {
-            gte: parseDate(startDate),
-            lte: parseDate(endDate),
-          },
-        }),
-      },
-      orderBy: { date: 'desc' },
+    const where = {
+      ...(category && { category: category as ExpenseCategory }),
+      ...(startDate && endDate && {
+        date: {
+          gte: parseDate(startDate),
+          lte: parseDate(endDate),
+        },
+      }),
+    }
+
+    const [records, total] = await Promise.all([
+      prisma.expense.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.expense.count({ where }),
+    ])
+
+    return apiPaginated(records, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     })
-
-    return apiSuccess(records)
   } catch (error) {
     console.error('GET /api/expenses error:', error)
     return apiError('Failed to fetch expense records', 500)

@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate } from '@/lib/api-utils'
 import { createMaterialSchema } from '@/lib/validations/materials'
 
-// GET /api/materials - Fetch all material records
+// GET /api/materials - Fetch material records with pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,17 +16,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const siteId = searchParams.get('siteId')
     const materialName = searchParams.get('materialName')
+    const { page, limit, skip } = parsePaginationParams(searchParams)
 
-    const records = await prisma.materialRecord.findMany({
-      where: {
-        ...(siteId && { siteId }),
-        ...(materialName && { materialName: { contains: materialName, mode: 'insensitive' } }),
-      },
-      include: { site: { select: { id: true, name: true } } },
-      orderBy: { date: 'desc' },
+    const where = {
+      ...(siteId && { siteId }),
+      ...(materialName && { materialName: { contains: materialName, mode: 'insensitive' as const } }),
+    }
+
+    const [records, total] = await Promise.all([
+      prisma.materialRecord.findMany({
+        where,
+        include: { site: { select: { id: true, name: true } } },
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.materialRecord.count({ where }),
+    ])
+
+    return apiPaginated(records, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     })
-
-    return apiSuccess(records)
   } catch (error) {
     console.error('GET /api/materials error:', error)
     return apiError('Failed to fetch material records', 500)

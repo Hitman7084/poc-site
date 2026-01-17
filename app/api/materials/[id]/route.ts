@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, validateRequest, parseDate, isNotFoundError } from '@/lib/api-utils'
 import { updateMaterialSchema } from '@/lib/validations/materials'
 
 // GET /api/materials/[id]
@@ -66,7 +66,7 @@ export async function PUT(
     return apiSuccess(material)
   } catch (error) {
     console.error('PUT /api/materials/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Material not found', 404)
     }
     return apiError('Failed to update material record', 500)
@@ -93,7 +93,7 @@ export async function DELETE(
     return apiSuccess(material)
   } catch (error) {
     console.error('DELETE /api/materials/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Material not found', 404)
     }
     return apiError('Failed to delete material record', 500)

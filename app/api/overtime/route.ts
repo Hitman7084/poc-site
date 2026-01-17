@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate } from '@/lib/api-utils'
 import { createOvertimeSchema } from '@/lib/validations/overtime'
 
-// GET /api/overtime - Fetch all overtime records
+// GET /api/overtime - Fetch overtime records with pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -17,21 +17,34 @@ export async function GET(request: NextRequest) {
     const workerId = searchParams.get('workerId')
     const siteId = searchParams.get('siteId')
     const date = searchParams.get('date')
+    const { page, limit, skip } = parsePaginationParams(searchParams)
 
-    const records = await prisma.overtime.findMany({
-      where: {
-        ...(workerId && { workerId }),
-        ...(siteId && { siteId }),
-        ...(date && { date: parseDate(date) }),
-      },
-      include: {
-        worker: { select: { id: true, name: true } },
-        site: { select: { id: true, name: true } },
-      },
-      orderBy: { date: 'desc' },
+    const where = {
+      ...(workerId && { workerId }),
+      ...(siteId && { siteId }),
+      ...(date && { date: parseDate(date) }),
+    }
+
+    const [records, total] = await Promise.all([
+      prisma.overtime.findMany({
+        where,
+        include: {
+          worker: { select: { id: true, name: true } },
+          site: { select: { id: true, name: true } },
+        },
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.overtime.count({ where }),
+    ])
+
+    return apiPaginated(records, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     })
-
-    return apiSuccess(records)
   } catch (error) {
     console.error('GET /api/overtime error:', error)
     return apiError('Failed to fetch overtime records', 500)
