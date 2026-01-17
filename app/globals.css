@@ -45,73 +45,85 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
+/* 
+ * Singh Fire Engineers Color Palette
+ * Primary: #061E29 (Deep Navy)
+ * Secondary: #1D546D (Steel Blue)  
+ * Accent: #5F9598 (Teal)
+ * Light: #F3F4F4 (Off White)
+ */
+
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.98 0.005 85);
-  --foreground: oklch(0.25 0.02 50);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.25 0.02 50);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0.02 50);
-  --primary: oklch(0.65 0.18 50);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.01 85);
-  --secondary-foreground: oklch(0.35 0.02 50);
-  --muted: oklch(0.95 0.01 85);
-  --muted-foreground: oklch(0.5 0.02 50);
-  --accent: oklch(0.92 0.02 50);
-  --accent-foreground: oklch(0.35 0.05 50);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.01 85);
-  --input: oklch(0.9 0.01 85);
-  --ring: oklch(0.65 0.18 50);
-  --chart-1: oklch(0.65 0.18 50);
-  --chart-2: oklch(0.6 0.15 145);
-  --chart-3: oklch(0.55 0.12 230);
-  --chart-4: oklch(0.7 0.15 85);
-  --chart-5: oklch(0.5 0.1 200);
-  --sidebar: oklch(0.25 0.02 50);
-  --sidebar-foreground: oklch(0.95 0.01 85);
-  --sidebar-primary: oklch(0.65 0.18 50);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.35 0.02 50);
-  --sidebar-accent-foreground: oklch(0.95 0.01 85);
-  --sidebar-border: oklch(0.35 0.02 50);
-  --sidebar-ring: oklch(0.65 0.18 50);
+  /* Light Mode - Using #F3F4F4 as base, #1D546D and #5F9598 as accents */
+  --background: #F3F4F4;
+  --foreground: #061E29;
+  --card: #ffffff;
+  --card-foreground: #061E29;
+  --popover: #ffffff;
+  --popover-foreground: #061E29;
+  --primary: #1D546D;
+  --primary-foreground: #F3F4F4;
+  --secondary: #e8eaeb;
+  --secondary-foreground: #1D546D;
+  --muted: #e8eaeb;
+  --muted-foreground: #5F9598;
+  --accent: #5F9598;
+  --accent-foreground: #F3F4F4;
+  --destructive: #dc2626;
+  --border: #d1d5db;
+  --input: #d1d5db;
+  --ring: #1D546D;
+  --chart-1: #1D546D;
+  --chart-2: #5F9598;
+  --chart-3: #061E29;
+  --chart-4: #2a6f8a;
+  --chart-5: #7ab0b3;
+  /* Sidebar - Dark themed with #061E29 */
+  --sidebar: #061E29;
+  --sidebar-foreground: #F3F4F4;
+  --sidebar-primary: #5F9598;
+  --sidebar-primary-foreground: #F3F4F4;
+  --sidebar-accent: #1D546D;
+  --sidebar-accent-foreground: #F3F4F4;
+  --sidebar-border: #1D546D;
+  --sidebar-ring: #5F9598;
 }
 
 .dark {
-  --background: oklch(0.15 0.01 50);
-  --foreground: oklch(0.95 0.01 85);
-  --card: oklch(0.2 0.01 50);
-  --card-foreground: oklch(0.95 0.01 85);
-  --popover: oklch(0.2 0.01 50);
-  --popover-foreground: oklch(0.95 0.01 85);
-  --primary: oklch(0.7 0.18 50);
-  --primary-foreground: oklch(0.15 0.01 50);
-  --secondary: oklch(0.28 0.01 50);
-  --secondary-foreground: oklch(0.95 0.01 85);
-  --muted: oklch(0.28 0.01 50);
-  --muted-foreground: oklch(0.65 0.02 85);
-  --accent: oklch(0.3 0.02 50);
-  --accent-foreground: oklch(0.95 0.01 85);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.3 0.01 50);
-  --input: oklch(0.3 0.01 50);
-  --ring: oklch(0.7 0.18 50);
-  --chart-1: oklch(0.7 0.18 50);
-  --chart-2: oklch(0.65 0.15 145);
-  --chart-3: oklch(0.6 0.12 230);
-  --chart-4: oklch(0.75 0.15 85);
-  --chart-5: oklch(0.55 0.1 200);
-  --sidebar: oklch(0.18 0.01 50);
-  --sidebar-foreground: oklch(0.95 0.01 85);
-  --sidebar-primary: oklch(0.7 0.18 50);
-  --sidebar-primary-foreground: oklch(0.15 0.01 50);
-  --sidebar-accent: oklch(0.28 0.01 50);
-  --sidebar-accent-foreground: oklch(0.95 0.01 85);
-  --sidebar-border: oklch(0.3 0.01 50);
-  --sidebar-ring: oklch(0.7 0.18 50);
+  /* Dark Mode - Using #061E29 as base, #5F9598 and #1D546D as accents */
+  --background: #061E29;
+  --foreground: #F3F4F4;
+  --card: #0d2d3a;
+  --card-foreground: #F3F4F4;
+  --popover: #0d2d3a;
+  --popover-foreground: #F3F4F4;
+  --primary: #5F9598;
+  --primary-foreground: #061E29;
+  --secondary: #1D546D;
+  --secondary-foreground: #F3F4F4;
+  --muted: #1D546D;
+  --muted-foreground: #a8c5c7;
+  --accent: #1D546D;
+  --accent-foreground: #F3F4F4;
+  --destructive: #ef4444;
+  --border: #1D546D;
+  --input: #1D546D;
+  --ring: #5F9598;
+  --chart-1: #5F9598;
+  --chart-2: #7ab0b3;
+  --chart-3: #1D546D;
+  --chart-4: #2a6f8a;
+  --chart-5: #a8c5c7;
+  /* Sidebar - Slightly darker than background */
+  --sidebar: #041520;
+  --sidebar-foreground: #F3F4F4;
+  --sidebar-primary: #5F9598;
+  --sidebar-primary-foreground: #061E29;
+  --sidebar-accent: #1D546D;
+  --sidebar-accent-foreground: #F3F4F4;
+  --sidebar-border: #1D546D;
+  --sidebar-ring: #5F9598;
 }
 
 @layer base {
@@ -120,6 +132,15 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Theme transition animations */
+  html {
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  html:not(.disable-transitions) * {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
   }
 }
 
@@ -130,8 +151,8 @@
       45deg,
       transparent,
       transparent 10px,
-      rgba(0, 0, 0, 0.03) 10px,
-      rgba(0, 0, 0, 0.03) 20px
+      rgba(29, 84, 109, 0.03) 10px,
+      rgba(29, 84, 109, 0.03) 20px
     );
   }
   
@@ -140,8 +161,38 @@
       45deg,
       transparent,
       transparent 10px,
-      rgba(255, 255, 255, 0.02) 10px,
-      rgba(255, 255, 255, 0.02) 20px
+      rgba(95, 149, 152, 0.03) 10px,
+      rgba(95, 149, 152, 0.03) 20px
     );
+  }
+  
+  /* Theme toggle animation */
+  .theme-toggle-icon {
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  }
+  
+  .animate-theme-toggle {
+    animation: theme-spin 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  @keyframes theme-spin {
+    from {
+      transform: rotate(0deg) scale(0.8);
+    }
+    50% {
+      transform: rotate(180deg) scale(1.1);
+    }
+    to {
+      transform: rotate(360deg) scale(1);
+    }
+  }
+  
+  /* Sidebar collapse transition */
+  .sidebar-transition {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .sidebar-content-transition {
+    transition: opacity 0.2s ease, transform 0.2s ease;
   }
 }

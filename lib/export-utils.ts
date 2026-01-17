@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 export type ExportColumn<T> = {
   header: string;
@@ -15,16 +15,26 @@ export type ExportConfig<T> = {
 /**
  * Export data to Excel file
  */
-export function exportToExcel<T>(
+export async function exportToExcel<T>(
   data: T[],
   config: ExportConfig<T>
-): void {
-  // Create worksheet data
-  const worksheetData: (string | number | boolean | null | undefined)[][] = [];
+): Promise<void> {
+  // Create workbook and worksheet
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(config.sheetName);
 
   // Add header row
   const headerRow = config.columns.map((col) => col.header);
-  worksheetData.push(headerRow);
+  worksheet.addRow(headerRow);
+
+  // Style header row
+  const headerRowObj = worksheet.getRow(1);
+  headerRowObj.font = { bold: true };
+  headerRowObj.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' }
+  };
 
   // Add data rows
   data.forEach((item) => {
@@ -49,32 +59,41 @@ export function exportToExcel<T>(
 
       return value as string | number | boolean | null | undefined;
     });
-    worksheetData.push(row);
+    worksheet.addRow(row);
   });
-
-  // Create workbook and worksheet
-  const workbook = XLSX.utils.book_new();
-  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
   // Auto-size columns
-  const colWidths = config.columns.map((col, idx) => {
+  worksheet.columns.forEach((column, idx) => {
     const maxLength = Math.max(
-      col.header.length,
-      ...worksheetData.slice(1).map((row) => {
-        const cell = row[idx];
-        return cell != null ? String(cell).length : 0;
+      config.columns[idx].header.length,
+      ...data.map((item) => {
+        const col = config.columns[idx];
+        let value: unknown;
+        if (typeof col.accessor === 'function') {
+          value = col.accessor(item);
+        } else {
+          value = item[col.accessor];
+        }
+        return value != null ? String(value).length : 0;
       })
     );
-    return { wch: Math.min(maxLength + 2, 50) };
+    column.width = Math.min(maxLength + 2, 50);
   });
-  worksheet['!cols'] = colWidths;
-
-  // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(workbook, worksheet, config.sheetName);
 
   // Generate file and trigger download
   const timestamp = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(workbook, `${config.filename}_${timestamp}.xlsx`);
+  const buffer = await workbook.xlsx.writeBuffer();
+  
+  // Create blob and download
+  const blob = new Blob([buffer], { 
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+  });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${config.filename}_${timestamp}.xlsx`;
+  link.click();
+  window.URL.revokeObjectURL(url);
 }
 
 /**

@@ -201,7 +201,7 @@ async function main() {
   console.log(`✅ Created ${materialRecords.length} material records`)
 
   // Create sample payment record
-  const payment = await prisma.payment.create({
+  await prisma.payment.create({
     data: {
       clientName: 'ABC Corp',
       amount: 50000,
@@ -214,7 +214,7 @@ async function main() {
   console.log('✅ Created sample payment record')
 
   // Create sample expense record
-  const expense = await prisma.expense.create({
+  await prisma.expense.create({
     data: {
       category: 'SITE_VISIT',
       amount: 500,
@@ -226,7 +226,7 @@ async function main() {
   console.log('✅ Created sample expense record')
 
   // Create sample pending work
-  const pendingWork = await prisma.pendingWork.create({
+  await prisma.pendingWork.create({
     data: {
       siteId: sites[0].id,
       taskDescription: 'Complete electrical wiring in 3rd floor',
