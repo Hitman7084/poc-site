@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Loader2, AlertCircle } from 'lucide-react';
+import { HardHat, Loader2, AlertCircle, Building, Wrench, Truck } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,72 +41,147 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="rounded-full bg-primary/10 p-3">
-              <Building2 className="h-8 w-8 text-primary" />
+    <div className="flex min-h-screen">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary/90 to-primary/80 relative overflow-hidden">
+        {/* Diagonal stripes pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,0.1) 35px, rgba(255,255,255,0.1) 70px)',
+          }} />
+        </div>
+        
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-center px-12 text-white">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+              <HardHat className="h-10 w-10" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">BuildTrack</h1>
+              <p className="text-white/80 text-sm">Construction Management</p>
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-          <CardDescription>
-            Sign in to access your record management system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                <p>{error}</p>
+          
+          <h2 className="text-4xl font-bold leading-tight mb-4">
+            Manage Your<br />Construction Projects<br />With Ease
+          </h2>
+          
+          <p className="text-white/80 text-lg mb-12 max-w-md">
+            Track workers, materials, attendance, and expenses - all in one powerful platform built for construction teams.
+          </p>
+          
+          {/* Feature highlights */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <Building className="h-5 w-5" />
               </div>
-            )}
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Demo credentials:</p>
-            <p className="mt-1 font-mono text-xs">admin@example.com / admin123</p>
+              <span className="text-white/90">Multi-site project management</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <Wrench className="h-5 w-5" />
+              </div>
+              <span className="text-white/90">Worker attendance & overtime tracking</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <Truck className="h-5 w-5" />
+              </div>
+              <span className="text-white/90">Material dispatch & inventory</span>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        
+        {/* Decorative elements */}
+        <div className="absolute bottom-0 right-0 w-64 h-64 bg-white/5 rounded-tl-full" />
+        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full" />
+      </div>
+
+      {/* Right Panel - Login Form */}
+      <div className="flex-1 flex items-center justify-center bg-background px-4 py-12">
+        <div className="w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
+            <div className="p-3 bg-primary rounded-xl">
+              <HardHat className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">BuildTrack</h1>
+              <p className="text-muted-foreground text-sm">Construction Management</p>
+            </div>
+          </div>
+
+          <Card className="border-0 shadow-xl lg:border lg:shadow-lg">
+            <CardHeader className="space-y-1 text-center pb-6">
+              <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+              <CardDescription>
+                Sign in to access your dashboard
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="admin@buildtrack.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="h-11"
+                  />
+                </div>
+
+                {error && (
+                  <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <p>{error}</p>
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full h-11 text-base font-medium" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign In'
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-6 pt-6 border-t text-center">
+                <p className="text-sm text-muted-foreground">
+                  Need help? Contact your administrator
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <p className="text-center text-xs text-muted-foreground mt-8">
+            © 2026 BuildTrack. All rights reserved.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

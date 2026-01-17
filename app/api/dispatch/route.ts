@@ -17,12 +17,14 @@ export async function GET(request: NextRequest) {
     const fromSiteId = searchParams.get('fromSiteId')
     const toSiteId = searchParams.get('toSiteId')
     const isReceived = searchParams.get('isReceived')
+    const date = searchParams.get('date')
 
     const records = await prisma.dispatchRecord.findMany({
       where: {
         ...(fromSiteId && { fromSiteId }),
         ...(toSiteId && { toSiteId }),
         ...(isReceived !== null && { isReceived: isReceived === 'true' }),
+        ...(date && { dispatchDate: parseDate(date) }),
       },
       include: {
         fromSite: { select: { id: true, name: true } },

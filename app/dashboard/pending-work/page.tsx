@@ -140,11 +140,16 @@ export default function PendingWorkPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Pending Work</h1>
-          <p className="text-muted-foreground">Track incomplete and pending tasks</p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-amber-500/10 rounded-xl">
+            <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Pending Work</h1>
+            <p className="text-sm text-muted-foreground">Track incomplete and pending tasks</p>
+          </div>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
+        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Task
         </Button>

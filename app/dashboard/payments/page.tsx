@@ -19,7 +19,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { FileUpload } from '@/components/FileUpload';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
@@ -116,11 +115,16 @@ export default function PaymentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Payments</h1>
-          <p className="text-muted-foreground">Track client payments and invoices</p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-emerald-500/10 rounded-xl">
+            <DollarSign className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Payments</h1>
+            <p className="text-sm text-muted-foreground">Track client payments and invoices</p>
+          </div>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
+        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Payment
         </Button>
@@ -229,14 +233,8 @@ export default function PaymentsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Receipt / Invoice</Label>
-                <FileUpload
-                  accept=".pdf,.doc,.docx,image/*"
-                  maxSize={10}
-                  label="Upload Document"
-                  currentUrl={formData.documentUrl}
-                  onUpload={(url) => setFormData({ ...formData, documentUrl: url })}
-                />
+                <Label htmlFor="documentUrl">Receipt / Invoice URL (Google Drive)</Label>
+                <Input id="documentUrl" type="url" value={formData.documentUrl} onChange={(e) => setFormData({ ...formData, documentUrl: e.target.value })} placeholder="https://drive.google.com/..." />
               </div>
 
               <div className="space-y-2">

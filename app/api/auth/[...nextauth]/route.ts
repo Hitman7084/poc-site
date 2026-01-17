@@ -3,6 +3,8 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcrypt'
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -19,10 +21,12 @@ export const authOptions: NextAuthOptions = {
         try {
           // Find user by email
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email }
+            where: { email: credentials.email.toLowerCase().trim() }
           })
           
           if (!user || !user.password) {
+            // Use constant-time comparison to prevent timing attacks
+            await bcrypt.compare(credentials.password, '$2b$10$dummyhashtopreventtimingattacks')
             return null
           }
           
@@ -52,22 +56,38 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt',
+    maxAge: 24 * 60 * 60, // 24 hours
+    updateAge: 60 * 60, // Refresh token every hour
   },
   pages: {
     signIn: '/login',
+    error: '/login',
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.role = user.role
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
+        session.user.role = token.role as string
       }
       return session
+    },
+  },
+  cookies: {
+    sessionToken: {
+      name: isProduction ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: isProduction,
+      },
     },
   },
   secret: process.env.NEXTAUTH_SECRET,

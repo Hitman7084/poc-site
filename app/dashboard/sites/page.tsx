@@ -1,11 +1,29 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, MapPin } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { 
+  Plus, 
+  Pencil, 
+  Trash2, 
+  MapPin, 
+  Users, 
+  Calendar as CalendarIcon, 
+  Save, 
+  Check,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
 import { useSites, useCreateSite, useUpdateSite, useDeleteSite } from '@/hooks/useSites';
-import type { Site, SiteInput } from '@/lib/types';
+import { useWorkers } from '@/hooks/useWorkers';
+import {
+  useAttendanceByDate,
+  useBulkCreateAttendance,
+  useBulkUpdateAttendance,
+} from '@/hooks/useAttendanceByDate';
+import type { Site, SiteInput, AttendanceInput } from '@/lib/types';
+import { AttendanceStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -14,23 +32,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
+import { cn } from '@/lib/utils';
+import { format, isWithinInterval, startOfDay } from 'date-fns';
+
+type WorkerAttendance = {
+  workerId: string;
+  workerName: string;
+  workerRole: string;
+  siteId: string;
+  isPresent: boolean;
+  existingRecordId?: string;
+};
 
 export default function SitesPage() {
+  // Date state
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  
+  // Site management state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSite, setEditingSite] = useState<Site | null>(null);
   const [formData, setFormData] = useState<SiteInput>({
@@ -41,12 +70,138 @@ export default function SitesPage() {
     endDate: '',
     isActive: true,
   });
+  
+  // Attendance state
+  const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [isEditing, setIsEditing] = useState(true);
+  const [workerAttendance, setWorkerAttendance] = useState<Map<string, WorkerAttendance>>(new Map());
+  const [isSaved, setIsSaved] = useState(false);
 
-  const { data: sites, isLoading, error, refetch } = useSites();
-  const createMutation = useCreateSite();
-  const updateMutation = useUpdateSite();
-  const deleteMutation = useDeleteSite();
+  const dateString = format(selectedDate, 'yyyy-MM-dd');
+  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
+  // Data fetching
+  const { data: sites, isLoading: isLoadingSites, error: sitesError, refetch: refetchSites } = useSites();
+  const { data: workers, isLoading: isLoadingWorkers } = useWorkers();
+  const { data: attendance, isLoading: isLoadingAttendance, refetch: refetchAttendance } = useAttendanceByDate(dateString);
+  
+  // Mutations
+  const createSiteMutation = useCreateSite();
+  const updateSiteMutation = useUpdateSite();
+  const deleteSiteMutation = useDeleteSite();
+  const createAttendanceMutation = useBulkCreateAttendance();
+  const updateAttendanceMutation = useBulkUpdateAttendance();
+
+  const isLoading = isLoadingSites || isLoadingWorkers || isLoadingAttendance;
+
+  // Get all sites for the grid
+  const allSites = useMemo(() => {
+    if (!sites) return [];
+    return sites;
+  }, [sites]);
+
+  // Check if a site is active on the selected date
+  const isSiteActiveOnDate = (site: Site) => {
+    if (!site.isActive) return false;
+    
+    const selectedDay = startOfDay(selectedDate);
+    
+    if (site.startDate && site.endDate) {
+      const startDate = startOfDay(new Date(site.startDate));
+      const endDate = startOfDay(new Date(site.endDate));
+      return isWithinInterval(selectedDay, { start: startDate, end: endDate });
+    }
+    
+    if (site.startDate) {
+      const startDate = startOfDay(new Date(site.startDate));
+      return selectedDay >= startDate;
+    }
+    
+    return true;
+  };
+
+  // Get workers for the selected site
+  const workersForSite = useMemo(() => {
+    if (!selectedSite || !workers || !attendance) return [];
+    
+    const workersWithAttendance = attendance
+      .filter(a => a.siteId === selectedSite.id)
+      .map(a => a.workerId);
+    
+    const activeWorkers = workers.filter(w => w.isActive);
+    
+    if (workersWithAttendance.length > 0) {
+      return activeWorkers.filter(w => workersWithAttendance.includes(w.id));
+    }
+    
+    return activeWorkers;
+  }, [selectedSite, workers, attendance]);
+
+  // Get attendance stats for a site on selected date
+  const getSiteAttendanceStats = (siteId: string) => {
+    if (!attendance) return { present: 0, total: 0 };
+    
+    const siteAttendance = attendance.filter(a => a.siteId === siteId);
+    const presentCount = siteAttendance.filter(a => a.status === AttendanceStatus.PRESENT).length;
+    
+    return { present: presentCount, total: siteAttendance.length };
+  };
+
+  // Initialize worker attendance when site changes
+  useEffect(() => {
+    if (!selectedSite || !workers) return;
+    
+    const newAttendanceMap = new Map<string, WorkerAttendance>();
+    const activeWorkers = workers.filter(w => w.isActive);
+    
+    activeWorkers.forEach(worker => {
+      const existingRecord = attendance?.find(
+        a => a.workerId === worker.id && a.siteId === selectedSite.id
+      );
+      
+      newAttendanceMap.set(worker.id, {
+        workerId: worker.id,
+        workerName: worker.name,
+        workerRole: worker.role || 'Worker',
+        siteId: selectedSite.id,
+        isPresent: existingRecord?.status === AttendanceStatus.PRESENT,
+        existingRecordId: existingRecord?.id,
+      });
+    });
+    
+    setWorkerAttendance(newAttendanceMap);
+    
+    const hasExistingRecords = attendance?.some(a => a.siteId === selectedSite.id);
+    setIsSaved(hasExistingRecords ?? false);
+    setIsEditing(!hasExistingRecords);
+  }, [selectedSite, workers, attendance]);
+
+  // Reset attendance state when date changes
+  useEffect(() => {
+    setSelectedSite(null);
+    setWorkerAttendance(new Map());
+    setIsSaved(false);
+    setIsEditing(true);
+  }, [selectedDate]);
+
+  // Date navigation handlers
+  const handlePreviousDay = () => {
+    setSelectedDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() - 1);
+      return newDate;
+    });
+  };
+
+  const handleNextDay = () => {
+    setSelectedDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() + 1);
+      return newDate;
+    });
+  };
+
+  // Site handlers
   const handleOpenDialog = (site?: Site) => {
     if (site) {
       setEditingSite(site);
@@ -77,7 +232,7 @@ export default function SitesPage() {
     setEditingSite(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmitSite = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const submitData: SiteInput = {
@@ -90,9 +245,9 @@ export default function SitesPage() {
 
     try {
       if (editingSite) {
-        await updateMutation.mutateAsync({ id: editingSite.id, data: submitData });
+        await updateSiteMutation.mutateAsync({ id: editingSite.id, data: submitData });
       } else {
-        await createMutation.mutateAsync(submitData);
+        await createSiteMutation.mutateAsync(submitData);
       }
       handleCloseDialog();
     } catch (err) {
@@ -100,33 +255,137 @@ export default function SitesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteSite = async (id: string) => {
     if (confirm('Are you sure you want to delete this site?')) {
       try {
-        await deleteMutation.mutateAsync(id);
+        await deleteSiteMutation.mutateAsync(id);
+        if (selectedSite?.id === id) {
+          setSelectedSite(null);
+        }
       } catch (err) {
         console.error('Failed to delete site:', err);
       }
     }
   };
 
-  if (isLoading) return <LoadingState message="Loading sites..." />;
-  if (error) return <ErrorState message={error.message} onRetry={refetch} />;
+  // Attendance handlers
+  const handleSelectSite = (site: Site) => {
+    if (!isSiteActiveOnDate(site)) return;
+    setSelectedSite(site);
+  };
+
+  const handleToggleAttendance = (workerId: string) => {
+    if (!isEditing) return;
+    
+    setWorkerAttendance(prev => {
+      const newMap = new Map(prev);
+      const current = newMap.get(workerId);
+      if (current) {
+        newMap.set(workerId, { ...current, isPresent: !current.isPresent });
+      }
+      return newMap;
+    });
+  };
+
+  const handleSaveAttendance = async () => {
+    if (!selectedSite) return;
+    
+    const recordsToCreate: AttendanceInput[] = [];
+    const recordsToUpdate: { id: string; data: AttendanceInput }[] = [];
+    
+    workerAttendance.forEach((record) => {
+      const attendanceInput: AttendanceInput = {
+        workerId: record.workerId,
+        siteId: record.siteId,
+        date: dateString,
+        status: record.isPresent ? AttendanceStatus.PRESENT : AttendanceStatus.ABSENT,
+      };
+      
+      if (record.existingRecordId) {
+        recordsToUpdate.push({ id: record.existingRecordId, data: attendanceInput });
+      } else {
+        recordsToCreate.push(attendanceInput);
+      }
+    });
+    
+    try {
+      if (recordsToCreate.length > 0) {
+        await createAttendanceMutation.mutateAsync(recordsToCreate);
+      }
+      if (recordsToUpdate.length > 0) {
+        await updateAttendanceMutation.mutateAsync(recordsToUpdate);
+      }
+      setIsSaved(true);
+      setIsEditing(false);
+      refetchAttendance();
+    } catch (error) {
+      console.error('Failed to save attendance:', error);
+    }
+  };
+
+  const handleEditAttendance = () => {
+    setIsEditing(true);
+  };
+
+  if (isLoading) return <LoadingState message="Loading sites and attendance..." />;
+  if (sitesError) return <ErrorState message={sitesError.message} onRetry={refetchSites} />;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Sites</h1>
-          <p className="text-muted-foreground">Manage your construction sites</p>
+      {/* Header with Date Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-green-500/10 rounded-xl">
+            <MapPin className="h-6 w-6 text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Sites & Attendance</h1>
+            <p className="text-sm text-muted-foreground">Manage sites and track worker attendance</p>
+          </div>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Site
-        </Button>
+        
+        <div className="flex items-center gap-2">
+          {/* Date Navigation */}
+          <Button variant="outline" size="icon" onClick={handlePreviousDay} className="shadow-sm">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="min-w-[200px] justify-start text-left font-normal shadow-sm">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(selectedDate, 'EEE, MMM d, yyyy')}
+                {isToday && <Badge variant="secondary" className="ml-2">Today</Badge>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => {
+                  if (date) {
+                    setSelectedDate(date);
+                    setCalendarOpen(false);
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          
+          <Button variant="outline" size="icon" onClick={handleNextDay} className="shadow-sm">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          
+          <Button onClick={() => handleOpenDialog()} className="shadow-sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Site
+          </Button>
+        </div>
       </div>
 
-      {!sites || sites.length === 0 ? (
+      {/* Sites Grid */}
+      {!allSites || allSites.length === 0 ? (
         <Card className="p-12">
           <EmptyState
             title="No sites found"
@@ -140,79 +399,226 @@ export default function SitesPage() {
           />
         </Card>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Start Date</TableHead>
-                <TableHead>End Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sites.map((site) => (
-                <TableRow key={site.id}>
-                  <TableCell className="font-medium">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {allSites.map((site) => {
+            const isActiveOnDate = isSiteActiveOnDate(site);
+            const stats = getSiteAttendanceStats(site.id);
+            const isSelected = selectedSite?.id === site.id;
+            
+            return (
+              <Card
+                key={site.id}
+                className={cn(
+                  "transition-all relative",
+                  isActiveOnDate ? "cursor-pointer hover:shadow-md" : "opacity-50",
+                  isSelected && "ring-2 ring-primary border-primary",
+                  !site.isActive && "opacity-40"
+                )}
+                onClick={() => handleSelectSite(site)}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      {site.name}
+                      <div className={cn(
+                        "p-2 rounded-lg",
+                        isActiveOnDate ? "bg-green-100 text-green-600 dark:bg-green-950" : "bg-muted"
+                      )}>
+                        <MapPin className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{site.name}</CardTitle>
+                        {site.location && (
+                          <CardDescription className="text-xs">{site.location}</CardDescription>
+                        )}
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell>{site.location || '-'}</TableCell>
-                  <TableCell>
-                    {site.startDate
-                      ? new Date(site.startDate).toLocaleDateString()
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {site.endDate
-                      ? new Date(site.endDate).toLocaleDateString()
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={site.isActive ? 'default' : 'secondary'}>
-                      {site.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         onClick={() => handleOpenDialog(site)}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3 w-3" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(site.id)}
+                        className="h-8 w-8"
+                        onClick={() => handleDeleteSite(site.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {site.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">{site.description}</p>
+                  )}
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                      <span>{stats.total} workers</span>
+                    </div>
+                    {stats.total > 0 ? (
+                      <Badge variant={stats.present === stats.total ? 'default' : 'secondary'}>
+                        {stats.present}/{stats.total} present
+                      </Badge>
+                    ) : (
+                      <Badge variant={isActiveOnDate ? 'outline' : 'secondary'}>
+                        {isActiveOnDate ? 'Active' : 'Inactive'}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {(site.startDate || site.endDate) && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <CalendarIcon className="h-3 w-3" />
+                      {site.startDate && site.endDate ? (
+                        <span>
+                          {format(new Date(site.startDate), 'MMM d')} - {format(new Date(site.endDate), 'MMM d, yyyy')}
+                        </span>
+                      ) : site.startDate ? (
+                        <span>From {format(new Date(site.startDate), 'MMM d, yyyy')}</span>
+                      ) : (
+                        <span>Until {format(new Date(site.endDate!), 'MMM d, yyyy')}</span>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Workers Attendance for Selected Site */}
+      {selectedSite && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  {selectedSite.name} - Workers
+                </CardTitle>
+                <CardDescription>
+                  Mark attendance for {format(selectedDate, 'MMMM d, yyyy')}
+                </CardDescription>
+              </div>
+              {isSaved && !isEditing && (
+                <Badge variant="default" className="flex items-center gap-1">
+                  <Check className="h-3 w-3" />
+                  Saved
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {workersForSite.length === 0 ? (
+              <EmptyState
+                title="No workers assigned"
+                description="There are no active workers. Add workers first to mark attendance."
+              />
+            ) : (
+              <div className="space-y-2">
+                {/* Header Row */}
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg font-medium">
+                  <span>Worker Name</span>
+                  <span>Present</span>
+                </div>
+                
+                {/* Worker Rows */}
+                {Array.from(workerAttendance.values())
+                  .filter(wa => workersForSite.some(w => w.id === wa.workerId))
+                  .map((record) => (
+                    <div
+                      key={record.workerId}
+                      className={cn(
+                        "flex items-center justify-between p-3 rounded-lg border transition-colors",
+                        record.isPresent 
+                          ? "bg-green-50 border-green-200 dark:bg-green-950/20" 
+                          : "bg-red-50 border-red-200 dark:bg-red-950/20",
+                        !isEditing && "opacity-75"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full",
+                          record.isPresent ? "bg-green-500" : "bg-red-500"
+                        )} />
+                        <div>
+                          <span className="font-medium">{record.workerName}</span>
+                          <p className="text-xs text-muted-foreground">{record.workerRole}</p>
+                        </div>
+                        {record.existingRecordId && (
+                          <Badge variant="outline" className="text-xs">Recorded</Badge>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <span className={cn(
+                          "text-sm",
+                          record.isPresent ? "text-green-600" : "text-red-600"
+                        )}>
+                          {record.isPresent ? 'Present' : 'Absent'}
+                        </span>
+                        <Checkbox
+                          checked={record.isPresent}
+                          onCheckedChange={() => handleToggleAttendance(record.workerId)}
+                          disabled={!isEditing}
+                          className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                        />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </CardContent>
         </Card>
       )}
 
+      {/* Save/Edit Button */}
+      {selectedSite && workerAttendance.size > 0 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          {isEditing ? (
+            <Button
+              size="lg"
+              onClick={handleSaveAttendance}
+              disabled={createAttendanceMutation.isPending || updateAttendanceMutation.isPending}
+              className="shadow-lg"
+            >
+              <Save className="mr-2 h-5 w-5" />
+              {createAttendanceMutation.isPending || updateAttendanceMutation.isPending 
+                ? 'Saving...' 
+                : 'Save Attendance'}
+            </Button>
+          ) : (
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={handleEditAttendance}
+              className="shadow-lg bg-background"
+            >
+              <Pencil className="mr-2 h-5 w-5" />
+              Edit Attendance
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Add/Edit Site Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md">
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmitSite}>
             <DialogHeader>
               <DialogTitle>
                 {editingSite ? 'Edit Site' : 'Add Site'}
               </DialogTitle>
               <DialogDescription>
-                {editingSite
-                  ? 'Update site information'
-                  : 'Add a new construction site'}
+                {editingSite ? 'Update site information' : 'Add a new construction site'}
               </DialogDescription>
             </DialogHeader>
 
@@ -222,9 +628,7 @@ export default function SitesPage() {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
               </div>
@@ -234,9 +638,7 @@ export default function SitesPage() {
                 <Input
                   id="location"
                   value={formData.location}
-                  onChange={(e) =>
-                    setFormData({ ...formData, location: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   placeholder="Full address"
                 />
               </div>
@@ -246,9 +648,7 @@ export default function SitesPage() {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Project details..."
                   rows={3}
                 />
@@ -261,9 +661,7 @@ export default function SitesPage() {
                     id="startDate"
                     type="date"
                     value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                   />
                 </div>
 
@@ -273,40 +671,30 @@ export default function SitesPage() {
                     id="endDate"
                     type="date"
                     value={formData.endDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, endDate: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
+                <Checkbox
                   id="isActive"
                   checked={formData.isActive}
-                  onChange={(e) =>
-                    setFormData({ ...formData, isActive: e.target.checked })
-                  }
-                  className="h-4 w-4"
+                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked === true })}
                 />
                 <Label htmlFor="isActive">Active</Label>
               </div>
             </div>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseDialog}
-              >
+              <Button type="button" variant="outline" onClick={handleCloseDialog}>
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
+                disabled={createSiteMutation.isPending || updateSiteMutation.isPending}
               >
-                {createMutation.isPending || updateMutation.isPending
+                {createSiteMutation.isPending || updateSiteMutation.isPending
                   ? 'Saving...'
                   : editingSite
                   ? 'Update'

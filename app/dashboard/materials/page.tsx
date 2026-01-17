@@ -134,11 +134,16 @@ export default function MaterialsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Materials</h1>
-          <p className="text-muted-foreground">Track material usage and inventory</p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-purple-500/10 rounded-xl">
+            <Package className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Materials</h1>
+            <p className="text-sm text-muted-foreground">Track material usage and inventory</p>
+          </div>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
+        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Material
         </Button>

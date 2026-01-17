@@ -19,7 +19,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { FileUpload } from '@/components/FileUpload';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
@@ -107,11 +106,16 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Expenses</h1>
-          <p className="text-muted-foreground">Track miscellaneous business expenses</p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-rose-500/10 rounded-xl">
+            <Receipt className="h-6 w-6 text-rose-600 dark:text-rose-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Expenses</h1>
+            <p className="text-sm text-muted-foreground">Track business and site expenses</p>
+          </div>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
+        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Expense
         </Button>
@@ -215,14 +219,8 @@ export default function ExpensesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Bill / Receipt</Label>
-                <FileUpload
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  maxSize={5}
-                  label="Upload Bill"
-                  currentUrl={formData.billUrl}
-                  onUpload={(url) => setFormData({ ...formData, billUrl: url })}
-                />
+                <Label htmlFor="billUrl">Bill / Receipt URL (Google Drive)</Label>
+                <Input id="billUrl" type="url" value={formData.billUrl} onChange={(e) => setFormData({ ...formData, billUrl: e.target.value })} placeholder="https://drive.google.com/..." />
               </div>
 
               <div className="space-y-2">

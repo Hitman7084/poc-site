@@ -18,7 +18,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { FileUpload } from '@/components/FileUpload';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
@@ -104,11 +103,16 @@ export default function WorkUpdatesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Work Updates</h1>
-          <p className="text-muted-foreground">Daily progress reports with photos and videos</p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-indigo-500/10 rounded-xl">
+            <ImageIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Work Updates</h1>
+            <p className="text-sm text-muted-foreground">Daily progress with photos and videos</p>
+          </div>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
+        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Update
         </Button>
@@ -185,14 +189,8 @@ export default function WorkUpdatesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Photo (Upload to Supabase)</Label>
-                <FileUpload
-                  accept="image/*"
-                  maxSize={5}
-                  label="Upload Photo"
-                  currentUrl={formData.photoUrl}
-                  onUpload={(url) => setFormData({ ...formData, photoUrl: url })}
-                />
+                <Label htmlFor="photoUrl">Photo URL (Google Drive)</Label>
+                <Input id="photoUrl" type="url" value={formData.photoUrl} onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })} placeholder="https://drive.google.com/..." />
               </div>
 
               <div className="space-y-2">

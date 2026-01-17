@@ -1,4 +1,4 @@
-import { Home, Users, MapPin, CalendarCheck, Package, Truck, ImageIcon, Clock, DollarSign, Receipt, AlertCircle } from 'lucide-react'
+import { Home, Users, MapPin, Package, Truck, ImageIcon, Clock, DollarSign, Receipt, AlertCircle } from 'lucide-react'
 
 export const navigation = [
   {
@@ -12,14 +12,9 @@ export const navigation = [
     icon: Users,
   },
   {
-    name: 'Sites',
+    name: 'Sites & Attendance',
     href: '/dashboard/sites',
     icon: MapPin,
-  },
-  {
-    name: 'Attendance',
-    href: '/dashboard/attendance',
-    icon: CalendarCheck,
   },
   {
     name: 'Materials',

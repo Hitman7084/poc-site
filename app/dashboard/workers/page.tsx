@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkers, useCreateWorker, useUpdateWorker, useDeleteWorker } from '@/hooks/useWorkers';
 import type { Worker, WorkerInput } from '@/lib/types';
@@ -149,11 +149,16 @@ export default function WorkersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Workers</h1>
-          <p className="text-muted-foreground">Manage your workforce</p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-blue-500/10 rounded-xl">
+            <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Workers</h1>
+            <p className="text-sm text-muted-foreground">Manage your construction workforce</p>
+          </div>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
+        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Worker
         </Button>

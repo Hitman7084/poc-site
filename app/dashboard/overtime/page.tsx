@@ -105,11 +105,16 @@ export default function OvertimePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Overtime</h1>
-          <p className="text-muted-foreground">Track extra hours and overtime pay</p>
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-cyan-500/10 rounded-xl">
+            <Clock className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Overtime</h1>
+            <p className="text-sm text-muted-foreground">Track extra hours and overtime pay</p>
+          </div>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
+        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Overtime
         </Button>

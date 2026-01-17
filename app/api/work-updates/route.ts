@@ -34,8 +34,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/work-updates - Create new work update
-// NOTE: Photo uploads should be handled separately via /api/upload endpoint
-// This endpoint expects photoUrl (from Supabase) and videoUrl (Google Drive link)
+// This endpoint expects photoUrl (from Google Drive) and videoUrl (Google Drive link)
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
