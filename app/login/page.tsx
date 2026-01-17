@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { HardHat, Loader2, AlertCircle, Building, Wrench, Truck } from 'lucide-react';
+import { Loader2, AlertCircle, Building, Wrench, Truck, Flame } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,7 +33,7 @@ export default function LoginPage() {
       } else if (result?.ok) {
         router.push('/dashboard');
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -55,20 +55,20 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col justify-center px-12 text-white">
           <div className="flex items-center gap-3 mb-8">
             <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-              <HardHat className="h-10 w-10" />
+              <Flame className="h-10 w-10" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">BuildTrack</h1>
-              <p className="text-white/80 text-sm">Construction Management</p>
+              <h1 className="text-3xl font-bold">Singh Fire</h1>
+              <p className="text-white/80 text-sm">Engineers</p>
             </div>
           </div>
           
           <h2 className="text-4xl font-bold leading-tight mb-4">
-            Manage Your<br />Construction Projects<br />With Ease
+            Fire Safety &<br />Construction Solutions<br />You Can Trust
           </h2>
           
           <p className="text-white/80 text-lg mb-12 max-w-md">
-            Track workers, materials, attendance, and expenses - all in one powerful platform built for construction teams.
+            Track workers, materials, attendance, and expenses - all in one powerful platform built for fire safety and construction teams.
           </p>
           
           {/* Feature highlights */}
@@ -105,11 +105,11 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
             <div className="p-3 bg-primary rounded-xl">
-              <HardHat className="h-8 w-8 text-primary-foreground" />
+              <Flame className="h-8 w-8 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">BuildTrack</h1>
-              <p className="text-muted-foreground text-sm">Construction Management</p>
+              <h1 className="text-2xl font-bold">Singh Fire</h1>
+              <p className="text-muted-foreground text-sm">Engineers</p>
             </div>
           </div>
 
@@ -127,7 +127,7 @@ export default function LoginPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@buildtrack.com"
+                    placeholder="admin@singhfire.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -178,7 +178,7 @@ export default function LoginPage() {
           </Card>
 
           <p className="text-center text-xs text-muted-foreground mt-8">
-            © 2026 BuildTrack. All rights reserved.
+            © 2026 Singh Fire Engineers. Crafted by Himanshu Mall.
           </p>
         </div>
       </div>

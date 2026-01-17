@@ -8,7 +8,7 @@ import {
   useUpdatePendingWork,
   useDeletePendingWork,
 } from '@/hooks/usePendingWork';
-import { useSites } from '@/hooks/useSites';
+import { useAllSites } from '@/hooks/useSites';
 import type { PendingWorkInput, PendingWorkWithRelations } from '@/lib/types';
 import { PendingWorkStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -23,8 +23,13 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
+import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
+import { exportToExcel, formatDate } from '@/lib/export-utils';
+import { Pagination } from '@/components/Pagination';
+import { toast } from 'sonner';
 
 export default function PendingWorkPage() {
+  const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWork, setEditingWork] = useState<PendingWorkWithRelations | null>(null);
   const [formData, setFormData] = useState<PendingWorkInput>({
@@ -39,8 +44,10 @@ export default function PendingWorkPage() {
     notes: '',
   });
 
-  const { data: pendingWork, isLoading, error, refetch } = usePendingWork();
-  const { data: sites } = useSites();
+  const { data: pendingWorkData, isLoading, error, refetch } = usePendingWork(page);
+  const pendingWork = pendingWorkData?.data ?? [];
+  const pagination = pendingWorkData?.pagination;
+  const { data: sites } = useAllSites();
   const createMutation = useCreatePendingWork();
   const updateMutation = useUpdatePendingWork();
   const deleteMutation = useDeletePendingWork();
@@ -134,6 +141,39 @@ export default function PendingWorkPage() {
     return <span className={`px-2 py-1 rounded text-xs font-medium ${colors[priority] || colors.Medium}`}>{priority}</span>;
   };
 
+  // Handle export
+  const handleExport = async (filters: ExportFilters) => {
+    if (!pendingWork) return;
+
+    let dataToExport = [...pendingWork];
+
+    // Apply date range filter based on expected completion date
+    dataToExport = filterByDateRange(
+      dataToExport,
+      (p) => p.expectedCompletionDate,
+      filters.fromDate,
+      filters.toDate
+    );
+
+    await exportToExcel(dataToExport, {
+      filename: 'pending_work',
+      sheetName: 'Pending Work',
+      columns: [
+        { header: 'Task Description', accessor: 'taskDescription' },
+        { header: 'Site', accessor: (p) => p.site.name },
+        { header: 'Reason for Pending', accessor: 'reasonForPending' },
+        { header: 'Status', accessor: (p) => p.status.replace('_', ' ') },
+        { header: 'Priority', accessor: (p) => p.priority || 'Medium' },
+        { header: 'Assigned To', accessor: (p) => p.assignedTo || '' },
+        { header: 'Expected Completion', accessor: (p) => formatDate(p.expectedCompletionDate) },
+        { header: 'Actual Completion', accessor: (p) => formatDate(p.actualCompletionDate) },
+        { header: 'Notes', accessor: (p) => p.notes || '' },
+        { header: 'Created At', accessor: (p) => formatDate(p.createdAt) },
+      ],
+    });
+    toast.success(`Exported ${dataToExport.length} pending work records to Excel`);
+  };
+
   if (isLoading) return <LoadingState message="Loading pending work..." />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
@@ -155,6 +195,12 @@ export default function PendingWorkPage() {
         </Button>
       </div>
 
+      {/* Export Section */}
+      <ExportToExcel
+        showSiteFilter={false}
+        onExport={handleExport}
+      />
+
       {!pendingWork || pendingWork.length === 0 ? (
         <Card className="p-12">
           <EmptyState
@@ -168,6 +214,7 @@ export default function PendingWorkPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">S.No</TableHead>
                 <TableHead>Task</TableHead>
                 <TableHead>Site</TableHead>
                 <TableHead>Priority</TableHead>
@@ -178,8 +225,9 @@ export default function PendingWorkPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pendingWork.map((work) => (
+              {pendingWork.map((work, index) => (
                 <TableRow key={work.id}>
+                  <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell className="font-medium max-w-xs">
                     <div className="line-clamp-2">{work.taskDescription}</div>
                     <div className="text-xs text-muted-foreground mt-1">{work.reasonForPending}</div>
@@ -208,6 +256,14 @@ export default function PendingWorkPage() {
             </TableBody>
           </Table>
         </Card>
+      )}
+
+      {pagination && (
+        <Pagination
+          pagination={pagination}
+          onPageChange={setPage}
+          isLoading={isLoading}
+        />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

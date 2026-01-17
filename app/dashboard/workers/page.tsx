@@ -30,8 +30,12 @@ import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ExportToExcel, type ExportFilters } from '@/components/ExportToExcel';
+import { exportToExcel, formatDate, formatCurrency, formatBoolean } from '@/lib/export-utils';
+import { Pagination } from '@/components/Pagination';
 
 export default function WorkersPage() {
+  const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [workerToDelete, setWorkerToDelete] = useState<string | null>(null);
@@ -46,7 +50,9 @@ export default function WorkersPage() {
     isActive: true,
   });
 
-  const { data: workers, isLoading, error, refetch } = useWorkers();
+  const { data, isLoading, error, refetch } = useWorkers(page);
+  const workers = data?.data;
+  const pagination = data?.pagination;
   const createMutation = useCreateWorker();
   const updateMutation = useUpdateWorker();
   const deleteMutation = useDeleteWorker();
@@ -143,35 +149,63 @@ export default function WorkersPage() {
     }
   };
 
+  // Handle export - filters param ignored for workers since they don't have date-based filtering
+  const handleExport = async (_filters: ExportFilters) => {
+    if (!workers) return;
+
+    // Workers don't have dates, so we export all workers
+    await exportToExcel(workers, {
+      filename: 'workers',
+      sheetName: 'Workers',
+      columns: [
+        { header: 'Name', accessor: 'name' },
+        { header: 'Role', accessor: (w) => w.role || '' },
+        { header: 'Phone', accessor: (w) => w.phone || '' },
+        { header: 'Email', accessor: (w) => w.email || '' },
+        { header: 'Daily Rate', accessor: (w) => w.dailyRate ? formatCurrency(w.dailyRate) : '' },
+        { header: 'Active', accessor: (w) => formatBoolean(w.isActive) },
+        { header: 'Created At', accessor: (w) => formatDate(w.createdAt) },
+      ],
+    });
+    toast.success(`Exported ${workers.length} workers to Excel`);
+  };
+
   if (isLoading) return <LoadingState message="Loading workers..." />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-blue-500/10 rounded-xl">
-            <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-blue-500/10 rounded-lg">
+            <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Workers</h1>
-            <p className="text-sm text-muted-foreground">Manage your construction workforce</p>
+            <h1 className="text-xl font-semibold">Workers</h1>
+            <p className="text-xs text-muted-foreground">Manage your construction workforce</p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
-          <Plus className="mr-2 h-4 w-4" />
+        <Button onClick={() => handleOpenDialog()} size="sm" className="h-8">
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
           Add Worker
         </Button>
       </div>
 
+      {/* Export Section */}
+      <ExportToExcel
+        showSiteFilter={false}
+        onExport={handleExport}
+      />
+
       {!workers || workers.length === 0 ? (
-        <Card className="p-12">
+        <Card className="p-8">
           <EmptyState
             title="No workers found"
             description="Get started by adding your first worker"
             action={
-              <Button onClick={() => handleOpenDialog()}>
-                <Plus className="mr-2 h-4 w-4" />
+              <Button onClick={() => handleOpenDialog()} size="sm">
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Add Worker
               </Button>
             }
@@ -179,57 +213,72 @@ export default function WorkersPage() {
         </Card>
       ) : (
         <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Daily Rate</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {workers.map((worker) => (
-                <TableRow key={worker.id}>
-                  <TableCell className="font-medium">{worker.name}</TableCell>
-                  <TableCell>{worker.role || '-'}</TableCell>
-                  <TableCell>{worker.phone || '-'}</TableCell>
-                  <TableCell>{worker.email || '-'}</TableCell>
-                  <TableCell>
-                    {worker.dailyRate ? `₹${worker.dailyRate.toFixed(2)}` : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={worker.isActive ? 'default' : 'secondary'}>
-                      {worker.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenDialog(worker)}
-                        aria-label="Edit worker"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClick(worker.id)}
-                        aria-label="Delete worker"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="h-9 text-xs w-12">S.No</TableHead>
+                  <TableHead className="h-9 text-xs">Name</TableHead>
+                  <TableHead className="h-9 text-xs">Role</TableHead>
+                  <TableHead className="h-9 text-xs">Phone</TableHead>
+                  <TableHead className="h-9 text-xs">Email</TableHead>
+                  <TableHead className="h-9 text-xs">Daily Rate</TableHead>
+                  <TableHead className="h-9 text-xs">Status</TableHead>
+                  <TableHead className="h-9 text-xs text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {workers.map((worker, index) => (
+                  <TableRow key={worker.id}>
+                    <TableCell className="py-2 text-sm text-muted-foreground">
+                      {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
+                    </TableCell>
+                    <TableCell className="py-2 font-medium text-sm">{worker.name}</TableCell>
+                    <TableCell className="py-2 text-sm text-muted-foreground">{worker.role || '-'}</TableCell>
+                    <TableCell className="py-2 text-sm text-muted-foreground">{worker.phone || '-'}</TableCell>
+                    <TableCell className="py-2 text-sm text-muted-foreground">{worker.email || '-'}</TableCell>
+                    <TableCell className="py-2 text-sm">
+                      {worker.dailyRate ? `₹${worker.dailyRate.toFixed(2)}` : '-'}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <Badge variant={worker.isActive ? 'default' : 'secondary'} className="text-xs h-5">
+                        {worker.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-2 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleOpenDialog(worker)}
+                          aria-label="Edit worker"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleDeleteClick(worker.id)}
+                          aria-label="Delete worker"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {pagination && (
+            <Pagination
+              pagination={pagination}
+              onPageChange={setPage}
+              isLoading={isLoading}
+            />
+          )}
         </Card>
       )}
 

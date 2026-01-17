@@ -1,19 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Image as ImageIcon, Video } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   useWorkUpdates,
   useCreateWorkUpdate,
   useUpdateWorkUpdate,
   useDeleteWorkUpdate,
 } from '@/hooks/useWorkUpdates';
-import { useSites } from '@/hooks/useSites';
+import { useAllSites } from '@/hooks/useSites';
+import { useHydrated } from '@/hooks/useHydration';
 import type { WorkUpdateInput, WorkUpdateWithRelations } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,21 +23,38 @@ import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
+import { ExportToExcel, filterByDateRange, filterBySites, type ExportFilters } from '@/components/ExportToExcel';
+import { exportToExcel, formatDate } from '@/lib/export-utils';
+import { Pagination } from '@/components/Pagination';
 
 export default function WorkUpdatesPage() {
+  const isHydrated = useHydrated();
+  const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUpdate, setEditingUpdate] = useState<WorkUpdateWithRelations | null>(null);
   const [formData, setFormData] = useState<WorkUpdateInput>({
     siteId: '',
-    date: new Date().toISOString().split('T')[0],
+    date: '',
     description: '',
     photoUrl: '',
     videoUrl: '',
     createdBy: '',
   });
 
-  const { data: updates, isLoading, error, refetch } = useWorkUpdates();
-  const { data: sites } = useSites();
+  // Initialize date after hydration
+  useEffect(() => {
+    if (isHydrated && !formData.date) {
+      setFormData(prev => ({
+        ...prev,
+        date: new Date().toISOString().split('T')[0]
+      }));
+    }
+  }, [isHydrated, formData.date]);
+
+  const { data: updatesData, isLoading, error, refetch } = useWorkUpdates(page);
+  const updates = updatesData?.data ?? [];
+  const pagination = updatesData?.pagination;
+  const { data: sites } = useAllSites();
   const createMutation = useCreateWorkUpdate();
   const updateMutation = useUpdateWorkUpdate();
   const deleteMutation = useDeleteWorkUpdate();
@@ -97,6 +116,43 @@ export default function WorkUpdatesPage() {
     }
   };
 
+  // Handle export
+  const handleExport = async (filters: ExportFilters) => {
+    if (!updates) return;
+
+    let dataToExport = [...updates];
+
+    // Apply date range filter
+    dataToExport = filterByDateRange(
+      dataToExport,
+      (u) => u.date,
+      filters.fromDate,
+      filters.toDate
+    );
+
+    // Apply site filter
+    dataToExport = filterBySites(
+      dataToExport,
+      (u) => u.siteId,
+      filters.selectedSiteIds
+    );
+
+    await exportToExcel(dataToExport, {
+      filename: 'work_updates',
+      sheetName: 'Work Updates',
+      columns: [
+        { header: 'Date', accessor: (u) => formatDate(u.date) },
+        { header: 'Site', accessor: (u) => u.site.name },
+        { header: 'Description', accessor: 'description' },
+        { header: 'Photo URL', accessor: (u) => u.photoUrl || '' },
+        { header: 'Video URL', accessor: (u) => u.videoUrl || '' },
+        { header: 'Created By', accessor: (u) => u.createdBy || '' },
+        { header: 'Created At', accessor: (u) => formatDate(u.createdAt) },
+      ],
+    });
+    toast.success(`Exported ${dataToExport.length} work updates to Excel`);
+  };
+
   if (isLoading) return <LoadingState message="Loading work updates..." />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
@@ -117,6 +173,13 @@ export default function WorkUpdatesPage() {
           Add Update
         </Button>
       </div>
+
+      {/* Export Section */}
+      <ExportToExcel
+        sites={sites}
+        showSiteFilter={true}
+        onExport={handleExport}
+      />
 
       {!updates || updates.length === 0 ? (
         <Card className="p-12">
@@ -155,6 +218,14 @@ export default function WorkUpdatesPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {pagination && (
+        <Pagination
+          pagination={pagination}
+          onPageChange={setPage}
+          isLoading={isLoading}
+        />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

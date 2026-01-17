@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Download, Calendar, Info } from 'lucide-react';
-import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns';
+import { Download, Calendar, MapPin, ChevronDown, Check } from 'lucide-react';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Site } from '@/lib/types';
 
@@ -21,9 +21,8 @@ export type ExportFilters = {
 type ExportToExcelProps = {
   sites?: Site[];
   showSiteFilter?: boolean;
-  onExport: (filters: ExportFilters) => void;
+  onExport: (filters: ExportFilters) => void | Promise<void>;
   isExporting?: boolean;
-  filterDescription?: string;
 };
 
 export function ExportToExcel({
@@ -31,13 +30,13 @@ export function ExportToExcel({
   showSiteFilter = false,
   onExport,
   isExporting = false,
-  filterDescription,
 }: ExportToExcelProps) {
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [fromCalendarOpen, setFromCalendarOpen] = useState(false);
   const [toCalendarOpen, setToCalendarOpen] = useState(false);
+  const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
 
   const activeSites = useMemo(() => {
     if (!sites) return [];
@@ -52,14 +51,6 @@ export function ExportToExcel({
     );
   };
 
-  const handleSelectAllSites = () => {
-    if (selectedSiteIds.length === activeSites.length) {
-      setSelectedSiteIds([]);
-    } else {
-      setSelectedSiteIds(activeSites.map((site) => site.id));
-    }
-  };
-
   const handleExport = () => {
     onExport({
       fromDate,
@@ -68,104 +59,84 @@ export function ExportToExcel({
     });
   };
 
-  const canExport = true; // Allow export with any filter combination
+  const getSiteFilterLabel = () => {
+    if (selectedSiteIds.length === 0) return 'All Sites';
+    if (selectedSiteIds.length === 1) {
+      const site = activeSites.find(s => s.id === selectedSiteIds[0]);
+      return site?.name || '1 site';
+    }
+    return `${selectedSiteIds.length} sites`;
+  };
 
   return (
     <Card className="bg-muted/30 border-dashed">
-      <CardContent className="pt-4 pb-4 space-y-4">
-        {/* Info Message */}
-        <div className="flex items-start gap-2 text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950/30 p-3 rounded-md border border-blue-200 dark:border-blue-800">
-          <Info className="h-4 w-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
-          <div>
-            <p className="font-medium text-blue-700 dark:text-blue-300">Export Data to Excel</p>
-            <p className="mt-1">
-              {showSiteFilter
-                ? 'Select the date range (From - To) and choose the sites for which you want to export the data. Leave dates empty to export all records.'
-                : 'Select the date range (From - To) to filter the export. Leave dates empty to export all records.'}
-            </p>
+      <CardContent className="py-3">
+        {/* Single Row Layout */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Title */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Download className="h-4 w-4" />
+            <span className="font-medium">Export</span>
           </div>
-        </div>
 
-        {/* Current Filter Info */}
-        {filterDescription && (
-          <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md border border-amber-200 dark:border-amber-800">
-            <Info className="h-4 w-4 mt-0.5 shrink-0" />
-            <div>
-              <p className="font-medium">Current View Filters Applied</p>
-              <p className="mt-1">{filterDescription}</p>
-              <p className="mt-1 text-xs opacity-75">
-                The exported data will match your current view. Change the filters above or in the main view to export different data.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Date Range Filters */}
-        <div className="flex flex-wrap items-end gap-4">
           {/* From Date */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">From Date</Label>
-            <Popover open={fromCalendarOpen} onOpenChange={setFromCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    'w-[160px] justify-start text-left font-normal',
-                    !fromDate && 'text-muted-foreground'
-                  )}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {fromDate ? format(fromDate, 'dd MMM yyyy') : 'Select date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="single"
-                  selected={fromDate}
-                  onSelect={(date) => {
-                    setFromDate(date);
-                    setFromCalendarOpen(false);
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          <Popover open={fromCalendarOpen} onOpenChange={setFromCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'w-[130px] justify-start text-left font-normal h-8',
+                  !fromDate && 'text-muted-foreground'
+                )}
+              >
+                <Calendar className="mr-2 h-3.5 w-3.5" />
+                {fromDate ? format(fromDate, 'dd MMM yyyy') : 'From'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={fromDate}
+                onSelect={(date) => {
+                  setFromDate(date);
+                  setFromCalendarOpen(false);
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
 
           {/* To Date */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium">To Date</Label>
-            <Popover open={toCalendarOpen} onOpenChange={setToCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    'w-[160px] justify-start text-left font-normal',
-                    !toDate && 'text-muted-foreground'
-                  )}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {toDate ? format(toDate, 'dd MMM yyyy') : 'Select date'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarComponent
-                  mode="single"
-                  selected={toDate}
-                  onSelect={(date) => {
-                    setToDate(date);
-                    setToCalendarOpen(false);
-                  }}
-                  disabled={(date) => fromDate ? date < fromDate : false}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+          <Popover open={toCalendarOpen} onOpenChange={setToCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'w-[130px] justify-start text-left font-normal h-8',
+                  !toDate && 'text-muted-foreground'
+                )}
+              >
+                <Calendar className="mr-2 h-3.5 w-3.5" />
+                {toDate ? format(toDate, 'dd MMM yyyy') : 'To'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={toDate}
+                onSelect={(date) => {
+                  setToDate(date);
+                  setToCalendarOpen(false);
+                }}
+                disabled={(date) => fromDate ? date < fromDate : false}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
 
-          {/* Clear Dates Button */}
+          {/* Clear Dates */}
           {(fromDate || toDate) && (
             <Button
               variant="ghost"
@@ -174,57 +145,85 @@ export function ExportToExcel({
                 setFromDate(undefined);
                 setToDate(undefined);
               }}
-              className="text-muted-foreground"
+              className="h-8 px-2 text-xs text-muted-foreground"
             >
-              Clear dates
+              Clear
             </Button>
           )}
-        </div>
 
-        {/* Site Filter */}
-        {showSiteFilter && sites && sites.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">Filter by Sites</Label>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSelectAllSites}
-                className="h-auto py-1 px-2 text-xs"
-              >
-                {selectedSiteIds.length === activeSites.length ? 'Deselect All' : 'Select All'}
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-3 p-3 bg-background rounded-md border max-h-32 overflow-y-auto">
-              {activeSites.map((site) => (
-                <div key={site.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`site-${site.id}`}
-                    checked={selectedSiteIds.includes(site.id)}
-                    onCheckedChange={() => handleSiteToggle(site.id)}
-                  />
-                  <Label
-                    htmlFor={`site-${site.id}`}
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    {site.name}
-                  </Label>
-                </div>
-              ))}
-            </div>
-            {selectedSiteIds.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                No sites selected - all sites will be included in the export
-              </p>
-            )}
-          </div>
-        )}
+          {/* Site Filter Dropdown */}
+          {showSiteFilter && sites && sites.length > 0 && (
+            <Popover open={siteDropdownOpen} onOpenChange={setSiteDropdownOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-[150px] justify-between font-normal"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{getSiteFilterLabel()}</span>
+                  </div>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0" align="start">
+                <ScrollArea className="h-[200px]">
+                  <div className="p-1">
+                    {/* All Sites Option */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSiteIds([])}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer",
+                        selectedSiteIds.length === 0 && "bg-accent"
+                      )}
+                    >
+                      <div className={cn(
+                        "flex h-4 w-4 items-center justify-center rounded-sm border",
+                        selectedSiteIds.length === 0 
+                          ? "bg-primary border-primary text-primary-foreground" 
+                          : "border-muted-foreground/30"
+                      )}>
+                        {selectedSiteIds.length === 0 && <Check className="h-3 w-3" />}
+                      </div>
+                      <span>All Sites</span>
+                    </button>
+                    
+                    <div className="my-1 h-px bg-border" />
+                    
+                    {/* Individual Sites */}
+                    {activeSites.map((site) => (
+                      <button
+                        key={site.id}
+                        type="button"
+                        onClick={() => handleSiteToggle(site.id)}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent cursor-pointer",
+                          selectedSiteIds.includes(site.id) && "bg-accent/50"
+                        )}
+                      >
+                        <div className={cn(
+                          "flex h-4 w-4 items-center justify-center rounded-sm border",
+                          selectedSiteIds.includes(site.id)
+                            ? "bg-primary border-primary text-primary-foreground"
+                            : "border-muted-foreground/30"
+                        )}>
+                          {selectedSiteIds.includes(site.id) && <Check className="h-3 w-3" />}
+                        </div>
+                        <span className="truncate">{site.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+          )}
 
-        {/* Export Button */}
-        <div className="flex justify-end pt-2">
-          <Button onClick={handleExport} disabled={isExporting} className="shadow-sm">
-            <Download className="mr-2 h-4 w-4" />
-            {isExporting ? 'Exporting...' : 'Export to Excel'}
+          {/* Export Button */}
+          <Button onClick={handleExport} disabled={isExporting} size="sm" className="h-8 ml-auto">
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            {isExporting ? 'Exporting...' : 'Export'}
           </Button>
         </div>
       </CardContent>

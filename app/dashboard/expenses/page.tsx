@@ -22,8 +22,13 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
+import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
+import { exportToExcel, formatDate, formatCurrency } from '@/lib/export-utils';
+import { Pagination } from '@/components/Pagination';
+import { toast } from 'sonner';
 
 export default function ExpensesPage() {
+  const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [formData, setFormData] = useState<ExpenseInput>({
@@ -35,7 +40,9 @@ export default function ExpensesPage() {
     notes: '',
   });
 
-  const { data: expenses, isLoading, error, refetch } = useExpenses();
+  const { data, isLoading, error, refetch } = useExpenses(page);
+  const expenses = data?.data;
+  const pagination = data?.pagination;
   const createMutation = useCreateExpense();
   const updateMutation = useUpdateExpense();
   const deleteMutation = useDeleteExpense();
@@ -100,6 +107,36 @@ export default function ExpensesPage() {
     return category.replace('_', ' ');
   };
 
+  // Handle export
+  const handleExport = async (filters: ExportFilters) => {
+    if (!expenses) return;
+
+    let dataToExport = [...expenses];
+
+    // Apply date range filter
+    dataToExport = filterByDateRange(
+      dataToExport,
+      (e) => e.date,
+      filters.fromDate,
+      filters.toDate
+    );
+
+    await exportToExcel(dataToExport, {
+      filename: 'expenses',
+      sheetName: 'Expenses',
+      columns: [
+        { header: 'Date', accessor: (e) => formatDate(e.date) },
+        { header: 'Category', accessor: (e) => getCategoryLabel(e.category) },
+        { header: 'Description', accessor: 'description' },
+        { header: 'Amount', accessor: (e) => formatCurrency(e.amount) },
+        { header: 'Bill URL', accessor: (e) => e.billUrl || '' },
+        { header: 'Notes', accessor: (e) => e.notes || '' },
+        { header: 'Created At', accessor: (e) => formatDate(e.createdAt) },
+      ],
+    });
+    toast.success(`Exported ${dataToExport.length} expense records to Excel`);
+  };
+
   if (isLoading) return <LoadingState message="Loading expenses..." />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
@@ -121,6 +158,12 @@ export default function ExpensesPage() {
         </Button>
       </div>
 
+      {/* Export Section */}
+      <ExportToExcel
+        showSiteFilter={false}
+        onExport={handleExport}
+      />
+
       {!expenses || expenses.length === 0 ? (
         <Card className="p-12">
           <EmptyState
@@ -134,6 +177,7 @@ export default function ExpensesPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">S.No</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Description</TableHead>
@@ -143,8 +187,9 @@ export default function ExpensesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {expenses.map((expense) => (
+              {expenses.map((expense, index) => (
                 <TableRow key={expense.id}>
+                  <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{getCategoryLabel(expense.category)}</Badge>
@@ -178,6 +223,14 @@ export default function ExpensesPage() {
             </TableBody>
           </Table>
         </Card>
+      )}
+
+      {pagination && (
+        <Pagination
+          pagination={pagination}
+          onPageChange={setPage}
+          isLoading={isLoading}
+        />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

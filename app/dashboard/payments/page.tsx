@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, DollarSign, FileText } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   usePayments,
   useCreatePayment,
@@ -22,8 +23,12 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
+import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
+import { exportToExcel, formatDate, formatCurrency } from '@/lib/export-utils';
+import { Pagination } from '@/components/Pagination';
 
 export default function PaymentsPage() {
+  const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [formData, setFormData] = useState<PaymentInput>({
@@ -36,7 +41,9 @@ export default function PaymentsPage() {
     notes: '',
   });
 
-  const { data: payments, isLoading, error, refetch } = usePayments();
+  const { data: paymentsData, isLoading, error, refetch } = usePayments(page);
+  const payments = paymentsData?.data ?? [];
+  const pagination = paymentsData?.pagination;
   const createMutation = useCreatePayment();
   const updateMutation = useUpdatePayment();
   const deleteMutation = useDeletePayment();
@@ -109,6 +116,37 @@ export default function PaymentsPage() {
     return <Badge variant={variants[type]}>{type}</Badge>;
   };
 
+  // Handle export
+  const handleExport = async (filters: ExportFilters) => {
+    if (!payments) return;
+
+    let dataToExport = [...payments];
+
+    // Apply date range filter
+    dataToExport = filterByDateRange(
+      dataToExport,
+      (p) => p.paymentDate,
+      filters.fromDate,
+      filters.toDate
+    );
+
+    await exportToExcel(dataToExport, {
+      filename: 'payments',
+      sheetName: 'Payments',
+      columns: [
+        { header: 'Payment Date', accessor: (p) => formatDate(p.paymentDate) },
+        { header: 'Client Name', accessor: 'clientName' },
+        { header: 'Project Name', accessor: (p) => p.projectName || '' },
+        { header: 'Payment Type', accessor: 'paymentType' },
+        { header: 'Amount', accessor: (p) => formatCurrency(p.amount) },
+        { header: 'Document URL', accessor: (p) => p.documentUrl || '' },
+        { header: 'Notes', accessor: (p) => p.notes || '' },
+        { header: 'Created At', accessor: (p) => formatDate(p.createdAt) },
+      ],
+    });
+    toast.success(`Exported ${dataToExport.length} payment records to Excel`);
+  };
+
   if (isLoading) return <LoadingState message="Loading payments..." />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
@@ -130,6 +168,12 @@ export default function PaymentsPage() {
         </Button>
       </div>
 
+      {/* Export Section */}
+      <ExportToExcel
+        showSiteFilter={false}
+        onExport={handleExport}
+      />
+
       {!payments || payments.length === 0 ? (
         <Card className="p-12">
           <EmptyState
@@ -143,6 +187,7 @@ export default function PaymentsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">S.No</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Project</TableHead>
@@ -153,8 +198,9 @@ export default function PaymentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payments.map((payment) => (
+              {payments.map((payment, index) => (
                 <TableRow key={payment.id}>
+                  <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -187,6 +233,14 @@ export default function PaymentsPage() {
             </TableBody>
           </Table>
         </Card>
+      )}
+
+      {pagination && (
+        <Pagination
+          pagination={pagination}
+          onPageChange={setPage}
+          isLoading={isLoading}
+        />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

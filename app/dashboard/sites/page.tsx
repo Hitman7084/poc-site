@@ -13,14 +13,15 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { useSites, useCreateSite, useUpdateSite, useDeleteSite } from '@/hooks/useSites';
+import { toast } from 'sonner';
+import { useSites, useAllSites, useCreateSite, useUpdateSite, useDeleteSite } from '@/hooks/useSites';
 import { useWorkers } from '@/hooks/useWorkers';
 import {
   useAttendanceByDate,
   useBulkCreateAttendance,
   useBulkUpdateAttendance,
 } from '@/hooks/useAttendanceByDate';
-import type { Site, SiteInput, AttendanceInput } from '@/lib/types';
+import type { Site, SiteInput, AttendanceInput, AttendanceWithRelations, ApiResponse } from '@/lib/types';
 import { AttendanceStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,8 +43,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
+import { ExportToExcel, filterByDateRange, filterBySites, type ExportFilters } from '@/components/ExportToExcel';
+import { exportToExcel, formatDate } from '@/lib/export-utils';
 import { cn } from '@/lib/utils';
 import { format, isWithinInterval, startOfDay } from 'date-fns';
+import { useHydrated } from '@/hooks/useHydration';
+import { Pagination } from '@/components/Pagination';
 
 type WorkerAttendance = {
   workerId: string;
@@ -55,8 +60,10 @@ type WorkerAttendance = {
 };
 
 export default function SitesPage() {
+  const isHydrated = useHydrated();
+  
   // Date state
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   
   // Site management state
@@ -77,12 +84,25 @@ export default function SitesPage() {
   const [workerAttendance, setWorkerAttendance] = useState<Map<string, WorkerAttendance>>(new Map());
   const [isSaved, setIsSaved] = useState(false);
 
-  const dateString = format(selectedDate, 'yyyy-MM-dd');
-  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+  // Initialize date after hydration
+  useEffect(() => {
+    if (isHydrated && !selectedDate) {
+      setSelectedDate(new Date());
+    }
+  }, [isHydrated, selectedDate]);
+
+  const dateString = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
+  const isToday = selectedDate ? format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') : false;
 
   // Data fetching
-  const { data: sites, isLoading: isLoadingSites, error: sitesError, refetch: refetchSites } = useSites();
-  const { data: workers, isLoading: isLoadingWorkers } = useWorkers();
+  const [sitePage, setSitePage] = useState(1);
+  const { data: sitesData, isLoading: isLoadingSites, error: sitesError, refetch: refetchSites } = useSites(sitePage);
+  const sites = sitesData?.data;
+  const sitesPagination = sitesData?.pagination;
+  const { data: allSitesData } = useAllSites(); // For dropdowns and export
+  const allSitesForDropdown = allSitesData || [];
+  const { data: workersData, isLoading: isLoadingWorkers } = useWorkers();
+  const workers = workersData?.data;
   const { data: attendance, isLoading: isLoadingAttendance, refetch: refetchAttendance } = useAttendanceByDate(dateString);
   
   // Mutations
@@ -102,7 +122,7 @@ export default function SitesPage() {
 
   // Check if a site is active on the selected date
   const isSiteActiveOnDate = (site: Site) => {
-    if (!site.isActive) return false;
+    if (!site.isActive || !selectedDate) return false;
     
     const selectedDay = startOfDay(selectedDate);
     
@@ -187,6 +207,7 @@ export default function SitesPage() {
   // Date navigation handlers
   const handlePreviousDay = () => {
     setSelectedDate(prev => {
+      if (!prev) return prev;
       const newDate = new Date(prev);
       newDate.setDate(newDate.getDate() - 1);
       return newDate;
@@ -195,6 +216,7 @@ export default function SitesPage() {
 
   const handleNextDay = () => {
     setSelectedDate(prev => {
+      if (!prev) return prev;
       const newDate = new Date(prev);
       newDate.setDate(newDate.getDate() + 1);
       return newDate;
@@ -327,7 +349,57 @@ export default function SitesPage() {
     setIsEditing(true);
   };
 
-  if (isLoading) return <LoadingState message="Loading sites and attendance..." />;
+  // Handle export attendance
+  const handleExportAttendance = async (filters: ExportFilters) => {
+    try {
+      // Fetch all attendance records from API
+      const response = await fetch('/api/attendance');
+      const result: ApiResponse<AttendanceWithRelations[]> = await response.json();
+      
+      if (!result.success || !result.data) {
+        console.error('Failed to fetch attendance for export');
+        return;
+      }
+
+      let dataToExport = result.data;
+
+      // Apply date range filter
+      dataToExport = filterByDateRange(
+        dataToExport,
+        (a) => a.date,
+        filters.fromDate,
+        filters.toDate
+      );
+
+      // Apply site filter
+      dataToExport = filterBySites(
+        dataToExport,
+        (a) => a.siteId,
+        filters.selectedSiteIds
+      );
+
+      await exportToExcel(dataToExport, {
+        filename: 'attendance_records',
+        sheetName: 'Attendance',
+        columns: [
+          { header: 'Date', accessor: (a) => formatDate(a.date) },
+          { header: 'Worker Name', accessor: (a) => a.worker.name },
+          { header: 'Site', accessor: (a) => a.site.name },
+          { header: 'Status', accessor: 'status' },
+          { header: 'Check In', accessor: (a) => a.checkIn ? new Date(a.checkIn).toLocaleTimeString() : '' },
+          { header: 'Check Out', accessor: (a) => a.checkOut ? new Date(a.checkOut).toLocaleTimeString() : '' },
+          { header: 'Notes', accessor: (a) => a.notes || '' },
+          { header: 'Created At', accessor: (a) => formatDate(a.createdAt) },
+        ],
+      });
+      toast.success(`Exported ${dataToExport.length} attendance records to Excel`);
+    } catch (error) {
+      console.error('Failed to export attendance:', error);
+      toast.error('Failed to export attendance records');
+    }
+  };
+
+  if (isLoading || !selectedDate) return <LoadingState message="Loading sites and attendance..." />;
   if (sitesError) return <ErrorState message={sitesError.message} onRetry={refetchSites} />;
 
   return (
@@ -383,6 +455,13 @@ export default function SitesPage() {
           </Button>
         </div>
       </div>
+
+      {/* Export Attendance Section */}
+      <ExportToExcel
+        sites={allSitesForDropdown}
+        showSiteFilter={true}
+        onExport={handleExportAttendance}
+      />
 
       {/* Sites Grid */}
       {!allSites || allSites.length === 0 ? (
@@ -492,6 +571,15 @@ export default function SitesPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Sites Pagination */}
+      {sitesPagination && (
+        <Pagination
+          pagination={sitesPagination}
+          onPageChange={setSitePage}
+          isLoading={isLoadingSites}
+        />
       )}
 
       {/* Workers Attendance for Selected Site */}
