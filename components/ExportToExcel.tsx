@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Download, Calendar, MapPin, ChevronDown, Check } from 'lucide-react';
+import { Download, Calendar, MapPin, ChevronDown, Check, Info } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -221,10 +221,16 @@ export function ExportToExcel({
           )}
 
           {/* Export Button */}
-          <Button onClick={handleExport} disabled={isExporting} size="sm" className="h-8 ml-auto">
-            <Download className="mr-1.5 h-3.5 w-3.5" />
-            {isExporting ? 'Exporting...' : 'Export'}
-          </Button>
+          <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1.5 rounded-md border border-amber-200 dark:border-amber-800">
+              <Info className="h-3.5 w-3.5 shrink-0" />
+              <span>Export data monthly for backup</span>
+            </div>
+            <Button onClick={handleExport} disabled={isExporting} size="sm" className="h-8">
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              {isExporting ? 'Exporting...' : 'Export'}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

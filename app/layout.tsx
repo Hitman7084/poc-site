@@ -12,6 +12,11 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   title: "Record Manager",
   description: "Internal Management System",
+  icons: {
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
 };
 
 export default function RootLayout({

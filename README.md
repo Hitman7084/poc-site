@@ -35,7 +35,6 @@ A production-ready internal management system designed for construction and fire
 
 - Email + password authentication (bcrypt hashed)
 - JWT sessions with secure HTTP-only cookies
-- **Single-session enforcement** - Login from new device invalidates previous sessions
 - Protected routes via middleware
 - No public registration (users managed by admin)
 

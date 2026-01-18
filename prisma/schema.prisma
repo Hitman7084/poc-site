@@ -45,14 +45,13 @@ enum PendingWorkStatus {
 // User model for authentication (pre-created in DB)
 // No registration logic - users managed by admin
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  password     String   // Hashed with bcrypt
-  name         String?
-  role         String   @default("user") // Future: admin, manager, user
-  sessionToken String?  // Unique token for single-session enforcement
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hashed with bcrypt
+  name      String?
+  role      String   @default("user") // Future: admin, manager, user
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([email])
 }

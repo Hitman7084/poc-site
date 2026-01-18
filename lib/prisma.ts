@@ -17,9 +17,9 @@ const getPoolConfig = (): PoolConfig => {
   return {
     connectionString,
     // Connection pool settings for security and performance
-    max: 10, // Maximum connections in pool
-    idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
-    connectionTimeoutMillis: 10000, // Timeout after 10 seconds
+    max: 5, // Reduced for Neon free tier
+    idleTimeoutMillis: 20000, // Close idle connections after 20 seconds
+    connectionTimeoutMillis: 5000, // Timeout after 5 seconds
     // SSL is enforced via sslmode=require in connection string
   }
 }
@@ -48,10 +48,8 @@ const createPrismaClient = () => {
   
   return new PrismaClient({
     adapter,
-    // Only log errors in production, more verbose in development
-    log: process.env.NODE_ENV === 'development' 
-      ? ['query', 'error', 'warn'] 
-      : ['error'],
+    // Only log errors - remove query logging for performance
+    log: ['error'],
   })
 }
 

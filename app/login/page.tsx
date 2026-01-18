@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertCircle, Building, Wrench, Truck, Flame } from 'lucide-react';
+import { Loader2, AlertCircle, Flame, Shield, Clock, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
@@ -54,61 +55,66 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary/90 to-primary/80 relative overflow-hidden">
-        {/* Diagonal stripes pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,0.1) 35px, rgba(255,255,255,0.1) 70px)',
-          }} />
-        </div>
+      {/* Left Panel - Hero Image */}
+      <div className="hidden lg:flex lg:w-3/5 relative overflow-hidden">
+        {/* Background Image */}
+        <Image
+          src="/construction.png"
+          alt="Construction Site"
+          fill
+          className="object-cover"
+          priority
+          quality={90}
+        />
         
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center px-12 text-white">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-              <Flame className="h-10 w-10" />
+        {/* Dark gradient from bottom for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        
+        {/* Content positioned at bottom */}
+        <div className="absolute inset-0 flex flex-col justify-between p-10 text-white">
+          {/* Top - Logo */}
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-primary rounded-xl shadow-lg">
+              <Flame className="h-8 w-8" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Singh Fire</h1>
-              <p className="text-white/80 text-sm">Engineers</p>
+              <h1 className="text-2xl font-bold tracking-tight">Singh Fire</h1>
+              <p className="text-white/70 text-xs uppercase tracking-widest">Engineers</p>
             </div>
           </div>
           
-          <p className="text-white/80 text-lg mb-12 max-w-md">
-            Track workers, materials, attendance, and expenses - all in one powerful platform built for construction teams.
-          </p>
-          
-          {/* Feature highlights */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <Building className="h-5 w-5" />
-              </div>
-              <span className="text-white/90">Multi-site project management</span>
+          {/* Bottom - Main Content */}
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-4xl xl:text-5xl font-bold leading-tight tracking-tight">
+                Construction<br />Management
+              </h2>
+              <p className="text-white/70 text-lg mt-3 max-w-md">
+                Workers • Materials • Attendance • Expenses
+              </p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <Wrench className="h-5 w-5" />
+            
+            {/* Minimal feature indicators */}
+            <div className="flex items-center gap-6 text-sm text-white/60">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                <span>Secure</span>
               </div>
-              <span className="text-white/90">Worker attendance & overtime tracking</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <Truck className="h-5 w-5" />
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                <span>Real-time</span>
               </div>
-              <span className="text-white/90">Material dispatch & inventory</span>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                <span>Analytics</span>
+              </div>
             </div>
           </div>
         </div>
-        
-        {/* Decorative elements */}
-        <div className="absolute bottom-0 right-0 w-64 h-64 bg-white/5 rounded-tl-full" />
-        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full" />
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="flex-1 flex items-center justify-center bg-background px-4 py-12">
+      <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 py-12">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
@@ -121,7 +127,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <Card className="border-0 shadow-xl lg:border lg:shadow-lg">
+          <Card className="border-0 shadow-xl lg:border lg:shadow-lg bg-white dark:bg-slate-900">
             <CardHeader className="space-y-1 text-center pb-6">
               <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
               <CardDescription>
@@ -179,7 +185,7 @@ export default function LoginPage() {
 
               <div className="mt-6 pt-6 border-t text-center">
                 <p className="text-sm text-muted-foreground">
-                  Need help? Contact your administrator
+                  No Registration. Manager access only.
                 </p>
               </div>
             </CardContent>

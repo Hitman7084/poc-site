@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { useState } from 'react'
-import { SessionGuard } from '@/components/SessionGuard'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -13,23 +12,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute
+            staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+            gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer
             refetchOnWindowFocus: false,
+            retry: 1, // Only retry once on failure
           },
         },
       })
   )
 
   return (
-    <SessionProvider 
-      refetchInterval={10 * 60} 
-      refetchOnWindowFocus={true}
-    >
+    <SessionProvider refetchOnWindowFocus={false} refetchWhenOffline={false}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <SessionGuard>
-            {children}
-          </SessionGuard>
+          {children}
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>
       </QueryClientProvider>
