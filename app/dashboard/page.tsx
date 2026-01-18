@@ -12,7 +12,7 @@ export default function DashboardPage() {
         </div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Welcome to BuildTrack Construction Management</p>
+          <p className="text-sm text-muted-foreground">Welcome to Record Management System</p>
         </div>
       </div>
 
@@ -27,7 +27,7 @@ export default function DashboardPage() {
             <div>
               <CardTitle className="text-base">Getting Started</CardTitle>
               <CardDescription className="text-xs">
-                Set up your construction management system
+                Set up your record management system
               </CardDescription>
             </div>
           </div>

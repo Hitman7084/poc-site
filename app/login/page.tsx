@@ -76,7 +76,7 @@ export default function LoginPage() {
           </div>
           
           <p className="text-white/80 text-lg mb-12 max-w-md">
-            Track workers, materials, attendance, and expenses - all in one powerful platform built for fire safety and construction teams.
+            Track workers, materials, attendance, and expenses - all in one powerful platform built for construction teams.
           </p>
           
           {/* Feature highlights */}
