@@ -1,20 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, AlertCircle, Building, Wrench, Truck, Flame } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Show session expired notification
+  useEffect(() => {
+    if (searchParams.get('session_expired') === '1') {
+      toast.error('Session Expired', {
+        description: 'Your session has expired. Please log in again.',
+        duration: 5000,
+      });
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +139,7 @@ export default function LoginPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@singhfire.com"
+                    placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -178,7 +190,7 @@ export default function LoginPage() {
           </Card>
 
           <p className="text-center text-xs text-muted-foreground mt-8">
-            © 2026 Singh Fire Engineers. Crafted by Himanshu Mall.
+            © 2026 Singh Fire Engineers. <br></br>Crafted by Himanshu Mall & Piyush Kumar.
           </p>
         </div>
       </div>

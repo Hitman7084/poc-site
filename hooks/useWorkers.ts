@@ -1,13 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Worker, WorkerInput, ApiResponse } from '@/lib/types';
+import type { Worker, WorkerInput, PaginatedResponse } from '@/lib/types';
+import type { PaginationInfo } from '@/components/Pagination';
 
 const QUERY_KEY = 'workers';
 
-async function fetchWorkers(): Promise<Worker[]> {
-  const response = await fetch('/api/workers');
-  const result: ApiResponse<Worker[]> = await response.json();
+export type PaginatedWorkers = {
+  data: Worker[];
+  pagination: PaginationInfo;
+};
+
+async function fetchWorkers(page: number = 1, limit: number = 10): Promise<PaginatedWorkers> {
+  const response = await fetch(`/api/workers?page=${page}&limit=${limit}`);
+  const result: PaginatedResponse<Worker> = await response.json();
   if (!result.success || !result.data) {
-    throw new Error(result.error || 'Failed to fetch workers');
+    throw new Error('Failed to fetch workers');
+  }
+  return {
+    data: result.data,
+    pagination: result.pagination,
+  };
+}
+
+async function fetchAllWorkers(): Promise<Worker[]> {
+  const response = await fetch(`/api/workers?all=true`);
+  const result: PaginatedResponse<Worker> = await response.json();
+  if (!result.success || !result.data) {
+    throw new Error('Failed to fetch all workers');
   }
   return result.data;
 }
@@ -18,7 +36,7 @@ async function createWorker(data: WorkerInput): Promise<Worker> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  const result: ApiResponse<Worker> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to create worker');
   }
@@ -31,7 +49,7 @@ async function updateWorker(id: string, data: WorkerInput): Promise<Worker> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  const result: ApiResponse<Worker> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to update worker');
   }
@@ -42,16 +60,23 @@ async function deleteWorker(id: string): Promise<void> {
   const response = await fetch(`/api/workers/${id}`, {
     method: 'DELETE',
   });
-  const result: ApiResponse<void> = await response.json();
+  const result = await response.json();
   if (!result.success) {
     throw new Error(result.error || 'Failed to delete worker');
   }
 }
 
-export function useWorkers() {
+export function useWorkers(page: number = 1, limit: number = 10) {
   return useQuery({
-    queryKey: [QUERY_KEY],
-    queryFn: fetchWorkers,
+    queryKey: [QUERY_KEY, page, limit],
+    queryFn: () => fetchWorkers(page, limit),
+  });
+}
+
+export function useAllWorkers() {
+  return useQuery({
+    queryKey: [QUERY_KEY, 'all'],
+    queryFn: fetchAllWorkers,
   });
 }
 

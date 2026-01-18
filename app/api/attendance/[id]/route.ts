@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, validateRequest, parseDate, isNotFoundError } from '@/lib/api-utils'
 import { updateAttendanceSchema } from '@/lib/validations/attendance'
 
 // GET /api/attendance/[id] - Get single attendance record
@@ -83,7 +83,7 @@ export async function PUT(
     return apiSuccess(record)
   } catch (error) {
     console.error('PUT /api/attendance/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Attendance record not found', 404)
     }
     return apiError('Failed to update attendance record', 500)
@@ -110,7 +110,7 @@ export async function DELETE(
     return apiSuccess({ message: 'Attendance record deleted successfully' })
   } catch (error) {
     console.error('DELETE /api/attendance/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Attendance record not found', 404)
     }
     return apiError('Failed to delete attendance record', 500)

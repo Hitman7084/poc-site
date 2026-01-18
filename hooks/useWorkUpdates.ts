@@ -1,15 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { WorkUpdateWithRelations, WorkUpdateInput, ApiResponse } from '@/lib/types';
+import type { WorkUpdateWithRelations, WorkUpdateInput, PaginatedResponse } from '@/lib/types';
+import type { PaginationInfo } from '@/components/Pagination';
 
 const QUERY_KEY = 'work-updates';
 
-async function fetchWorkUpdates(): Promise<WorkUpdateWithRelations[]> {
-  const response = await fetch('/api/work-updates');
-  const result: ApiResponse<WorkUpdateWithRelations[]> = await response.json();
+export type PaginatedWorkUpdates = {
+  data: WorkUpdateWithRelations[];
+  pagination: PaginationInfo;
+};
+
+async function fetchWorkUpdates(page: number = 1, limit: number = 10): Promise<PaginatedWorkUpdates> {
+  const response = await fetch(`/api/work-updates?page=${page}&limit=${limit}`);
+  const result: PaginatedResponse<WorkUpdateWithRelations> = await response.json();
   if (!result.success || !result.data) {
-    throw new Error(result.error || 'Failed to fetch work updates');
+    throw new Error('Failed to fetch work updates');
   }
-  return result.data;
+  return {
+    data: result.data,
+    pagination: result.pagination,
+  };
 }
 
 async function createWorkUpdate(data: WorkUpdateInput): Promise<WorkUpdateWithRelations> {
@@ -22,7 +31,7 @@ async function createWorkUpdate(data: WorkUpdateInput): Promise<WorkUpdateWithRe
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const result: ApiResponse<WorkUpdateWithRelations> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to create work update');
   }
@@ -39,7 +48,7 @@ async function updateWorkUpdate(id: string, data: WorkUpdateInput): Promise<Work
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const result: ApiResponse<WorkUpdateWithRelations> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to update work update');
   }
@@ -50,16 +59,16 @@ async function deleteWorkUpdate(id: string): Promise<void> {
   const response = await fetch(`/api/work-updates/${id}`, {
     method: 'DELETE',
   });
-  const result: ApiResponse<void> = await response.json();
+  const result = await response.json();
   if (!result.success) {
     throw new Error(result.error || 'Failed to delete work update');
   }
 }
 
-export function useWorkUpdates() {
+export function useWorkUpdates(page: number = 1, limit: number = 10) {
   return useQuery({
-    queryKey: [QUERY_KEY],
-    queryFn: fetchWorkUpdates,
+    queryKey: [QUERY_KEY, page, limit],
+    queryFn: () => fetchWorkUpdates(page, limit),
   });
 }
 

@@ -1,15 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { MaterialWithRelations, MaterialInput, ApiResponse } from '@/lib/types';
+import type { MaterialWithRelations, MaterialInput, PaginatedResponse } from '@/lib/types';
+import type { PaginationInfo } from '@/components/Pagination';
 
 const QUERY_KEY = 'materials';
 
-async function fetchMaterials(): Promise<MaterialWithRelations[]> {
-  const response = await fetch('/api/materials');
-  const result: ApiResponse<MaterialWithRelations[]> = await response.json();
+export type PaginatedMaterials = {
+  data: MaterialWithRelations[];
+  pagination: PaginationInfo;
+};
+
+async function fetchMaterials(page: number = 1, limit: number = 10): Promise<PaginatedMaterials> {
+  const response = await fetch(`/api/materials?page=${page}&limit=${limit}`);
+  const result: PaginatedResponse<MaterialWithRelations> = await response.json();
   if (!result.success || !result.data) {
-    throw new Error(result.error || 'Failed to fetch materials');
+    throw new Error('Failed to fetch materials');
   }
-  return result.data;
+  return {
+    data: result.data,
+    pagination: result.pagination,
+  };
 }
 
 async function createMaterial(data: MaterialInput): Promise<MaterialWithRelations> {
@@ -22,7 +31,7 @@ async function createMaterial(data: MaterialInput): Promise<MaterialWithRelation
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const result: ApiResponse<MaterialWithRelations> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to create material');
   }
@@ -39,7 +48,7 @@ async function updateMaterial(id: string, data: MaterialInput): Promise<Material
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const result: ApiResponse<MaterialWithRelations> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to update material');
   }
@@ -50,16 +59,16 @@ async function deleteMaterial(id: string): Promise<void> {
   const response = await fetch(`/api/materials/${id}`, {
     method: 'DELETE',
   });
-  const result: ApiResponse<void> = await response.json();
+  const result = await response.json();
   if (!result.success) {
     throw new Error(result.error || 'Failed to delete material');
   }
 }
 
-export function useMaterials() {
+export function useMaterials(page: number = 1, limit: number = 10) {
   return useQuery({
-    queryKey: [QUERY_KEY],
-    queryFn: fetchMaterials,
+    queryKey: [QUERY_KEY, page, limit],
+    queryFn: () => fetchMaterials(page, limit),
   });
 }
 

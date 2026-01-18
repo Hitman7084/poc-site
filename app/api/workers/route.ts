@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest } from '@/lib/api-utils'
 import { createWorkerSchema } from '@/lib/validations/workers'
 
-// GET /api/workers - Fetch all workers with optional filters
+// GET /api/workers - Fetch workers with pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,16 +16,46 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const isActive = searchParams.get('isActive')
     const name = searchParams.get('name')
+    const fetchAll = searchParams.get('all') === 'true'
 
-    const workers = await prisma.worker.findMany({
-      where: {
-        ...(isActive !== null && { isActive: isActive === 'true' }),
-        ...(name && { name: { contains: name, mode: 'insensitive' } }),
-      },
-      orderBy: { name: 'asc' },
+    const where = {
+      ...(isActive !== null && { isActive: isActive === 'true' }),
+      ...(name && { name: { contains: name, mode: 'insensitive' as const } }),
+    }
+
+    // If fetching all workers (for dropdowns), skip pagination
+    if (fetchAll) {
+      const workers = await prisma.worker.findMany({
+        where,
+        orderBy: { name: 'asc' },
+      })
+      const total = workers.length
+      return apiPaginated(workers, {
+        total,
+        page: 1,
+        limit: total,
+        totalPages: 1,
+      })
+    }
+
+    const { page, limit, skip } = parsePaginationParams(searchParams)
+
+    const [workers, total] = await Promise.all([
+      prisma.worker.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.worker.count({ where }),
+    ])
+
+    return apiPaginated(workers, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     })
-
-    return apiSuccess(workers)
   } catch (error) {
     console.error('GET /api/workers error:', error)
     return apiError('Failed to fetch workers', 500)

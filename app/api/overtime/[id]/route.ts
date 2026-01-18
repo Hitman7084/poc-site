@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, validateRequest, parseDate, isNotFoundError } from '@/lib/api-utils'
 import { updateOvertimeSchema } from '@/lib/validations/overtime'
 
 // GET /api/overtime/[id]
@@ -90,7 +90,7 @@ export async function PUT(
     return apiSuccess(overtime)
   } catch (error) {
     console.error('PUT /api/overtime/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Overtime not found', 404)
     }
     return apiError('Failed to update overtime record', 500)
@@ -117,7 +117,7 @@ export async function DELETE(
     return apiSuccess(overtime)
   } catch (error) {
     console.error('DELETE /api/overtime/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Overtime not found', 404)
     }
     return apiError('Failed to delete overtime record', 500)

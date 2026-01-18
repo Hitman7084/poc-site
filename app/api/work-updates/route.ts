@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate } from '@/lib/api-utils'
 import { createWorkUpdateSchema } from '@/lib/validations/work-updates'
 
-// GET /api/work-updates - Fetch all work updates
+// GET /api/work-updates - Fetch work updates with pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,17 +16,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const siteId = searchParams.get('siteId')
     const date = searchParams.get('date')
+    const { page, limit, skip } = parsePaginationParams(searchParams)
 
-    const records = await prisma.workUpdate.findMany({
-      where: {
-        ...(siteId && { siteId }),
-        ...(date && { date: parseDate(date) }),
-      },
-      include: { site: { select: { id: true, name: true } } },
-      orderBy: { date: 'desc' },
+    const where = {
+      ...(siteId && { siteId }),
+      ...(date && { date: parseDate(date) }),
+    }
+
+    const [records, total] = await Promise.all([
+      prisma.workUpdate.findMany({
+        where,
+        include: { site: { select: { id: true, name: true } } },
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.workUpdate.count({ where }),
+    ])
+
+    return apiPaginated(records, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     })
-
-    return apiSuccess(records)
   } catch (error) {
     console.error('GET /api/work-updates error:', error)
     return apiError('Failed to fetch work updates', 500)

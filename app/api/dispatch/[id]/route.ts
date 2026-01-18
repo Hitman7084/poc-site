@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, validateRequest, parseDate, isNotFoundError } from '@/lib/api-utils'
 import { updateDispatchSchema } from '@/lib/validations/dispatch'
 
 // GET /api/dispatch/[id]
@@ -79,7 +79,7 @@ export async function PUT(
     return apiSuccess(dispatch)
   } catch (error) {
     console.error('PUT /api/dispatch/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Dispatch not found', 404)
     }
     return apiError('Failed to update dispatch record', 500)
@@ -106,7 +106,7 @@ export async function DELETE(
     return apiSuccess(dispatch)
   } catch (error) {
     console.error('DELETE /api/dispatch/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Dispatch not found', 404)
     }
     return apiError('Failed to delete dispatch record', 500)

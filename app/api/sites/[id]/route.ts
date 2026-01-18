@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest } from '@/lib/api-utils'
+import { apiSuccess, apiError, validateRequest, isNotFoundError } from '@/lib/api-utils'
 import { updateSiteSchema } from '@/lib/validations/sites'
 
 // GET /api/sites/[id]
@@ -77,7 +77,7 @@ export async function PUT(
     return apiSuccess(site)
   } catch (error) {
     console.error('PUT /api/sites/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Site not found', 404)
     }
     return apiError('Failed to update site', 500)
@@ -106,7 +106,7 @@ export async function DELETE(
     return apiSuccess(site)
   } catch (error) {
     console.error('DELETE /api/sites/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Site not found', 404)
     }
     return apiError('Failed to delete site', 500)

@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate } from '@/lib/api-utils'
 import { createDispatchSchema } from '@/lib/validations/dispatch'
 
-// GET /api/dispatch - Fetch all dispatch records
+// GET /api/dispatch - Fetch dispatch records with pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -18,22 +18,35 @@ export async function GET(request: NextRequest) {
     const toSiteId = searchParams.get('toSiteId')
     const isReceived = searchParams.get('isReceived')
     const date = searchParams.get('date')
+    const { page, limit, skip } = parsePaginationParams(searchParams)
 
-    const records = await prisma.dispatchRecord.findMany({
-      where: {
-        ...(fromSiteId && { fromSiteId }),
-        ...(toSiteId && { toSiteId }),
-        ...(isReceived !== null && { isReceived: isReceived === 'true' }),
-        ...(date && { dispatchDate: parseDate(date) }),
-      },
-      include: {
-        fromSite: { select: { id: true, name: true } },
-        toSite: { select: { id: true, name: true } },
-      },
-      orderBy: { dispatchDate: 'desc' },
+    const where = {
+      ...(fromSiteId && { fromSiteId }),
+      ...(toSiteId && { toSiteId }),
+      ...(isReceived !== null && { isReceived: isReceived === 'true' }),
+      ...(date && { dispatchDate: parseDate(date) }),
+    }
+
+    const [records, total] = await Promise.all([
+      prisma.dispatchRecord.findMany({
+        where,
+        include: {
+          fromSite: { select: { id: true, name: true } },
+          toSite: { select: { id: true, name: true } },
+        },
+        orderBy: { dispatchDate: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.dispatchRecord.count({ where }),
+    ])
+
+    return apiPaginated(records, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     })
-
-    return apiSuccess(records)
   } catch (error) {
     console.error('GET /api/dispatch error:', error)
     return apiError('Failed to fetch dispatch records', 500)

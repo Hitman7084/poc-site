@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest } from '@/lib/api-utils'
+import { apiSuccess, apiError, validateRequest, isNotFoundError } from '@/lib/api-utils'
 import { updateWorkerSchema } from '@/lib/validations/workers'
 
 // GET /api/workers/[id]
@@ -68,7 +68,7 @@ export async function PUT(
     return apiSuccess(worker)
   } catch (error) {
     console.error('PUT /api/workers/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Worker not found', 404)
     }
     return apiError('Failed to update worker', 500)
@@ -97,7 +97,7 @@ export async function DELETE(
     return apiSuccess(worker)
   } catch (error) {
     console.error('DELETE /api/workers/[id] error:', error)
-    if ((error as any).code === 'P2025') {
+    if (isNotFoundError(error)) {
       return apiError('Worker not found', 404)
     }
     return apiError('Failed to delete worker', 500)

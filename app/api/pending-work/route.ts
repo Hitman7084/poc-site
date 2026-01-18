@@ -2,10 +2,11 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate } from '@/lib/api-utils'
 import { createPendingWorkSchema } from '@/lib/validations/pending-work'
+import { PendingWorkStatus } from '@/lib/types'
 
-// GET /api/pending-work - Fetch all pending work records
+// GET /api/pending-work - Fetch pending work records with pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,17 +17,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const siteId = searchParams.get('siteId')
     const status = searchParams.get('status')
+    const { page, limit, skip } = parsePaginationParams(searchParams)
 
-    const records = await prisma.pendingWork.findMany({
-      where: {
-        ...(siteId && { siteId }),
-        ...(status && { status: status as any }),
-      },
-      include: { site: { select: { id: true, name: true } } },
-      orderBy: { expectedCompletionDate: 'asc' },
+    const where = {
+      ...(siteId && { siteId }),
+      ...(status && { status: status as PendingWorkStatus }),
+    }
+
+    const [records, total] = await Promise.all([
+      prisma.pendingWork.findMany({
+        where,
+        include: { site: { select: { id: true, name: true } } },
+        orderBy: { expectedCompletionDate: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.pendingWork.count({ where }),
+    ])
+
+    return apiPaginated(records, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     })
-
-    return apiSuccess(records)
   } catch (error) {
     console.error('GET /api/pending-work error:', error)
     return apiError('Failed to fetch pending work records', 500)

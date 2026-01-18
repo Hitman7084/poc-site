@@ -166,9 +166,13 @@ export function withErrorHandling(
 
 /**
  * Compose multiple middleware functions
+ * Generic handler type for API route handlers
  */
-export function compose(...middlewares: Array<(handler: any) => any>) {
-  return (handler: any) => {
+type ApiHandler<T = unknown> = (req: NextRequest, ...args: T[]) => Promise<NextResponse>
+type MiddlewareWrapper = <T>(handler: ApiHandler<T>) => ApiHandler<T>
+
+export function compose(...middlewares: MiddlewareWrapper[]) {
+  return <T>(handler: ApiHandler<T>): ApiHandler<T> => {
     return middlewares.reduceRight((acc, middleware) => middleware(acc), handler)
   }
 }

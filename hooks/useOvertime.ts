@@ -1,15 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { OvertimeWithRelations, OvertimeInput, ApiResponse } from '@/lib/types';
+import type { OvertimeWithRelations, OvertimeInput, PaginatedResponse } from '@/lib/types';
+import type { PaginationInfo } from '@/components/Pagination';
 
 const QUERY_KEY = 'overtime';
 
-async function fetchOvertime(): Promise<OvertimeWithRelations[]> {
-  const response = await fetch('/api/overtime');
-  const result: ApiResponse<OvertimeWithRelations[]> = await response.json();
+export type PaginatedOvertime = {
+  data: OvertimeWithRelations[];
+  pagination: PaginationInfo;
+};
+
+async function fetchOvertime(page: number = 1, limit: number = 10): Promise<PaginatedOvertime> {
+  const response = await fetch(`/api/overtime?page=${page}&limit=${limit}`);
+  const result: PaginatedResponse<OvertimeWithRelations> = await response.json();
   if (!result.success || !result.data) {
-    throw new Error(result.error || 'Failed to fetch overtime');
+    throw new Error('Failed to fetch overtime');
   }
-  return result.data;
+  return {
+    data: result.data,
+    pagination: result.pagination,
+  };
 }
 
 async function createOvertime(data: OvertimeInput): Promise<OvertimeWithRelations> {
@@ -22,7 +31,7 @@ async function createOvertime(data: OvertimeInput): Promise<OvertimeWithRelation
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const result: ApiResponse<OvertimeWithRelations> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to create overtime');
   }
@@ -39,7 +48,7 @@ async function updateOvertime(id: string, data: OvertimeInput): Promise<Overtime
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const result: ApiResponse<OvertimeWithRelations> = await response.json();
+  const result = await response.json();
   if (!result.success || !result.data) {
     throw new Error(result.error || 'Failed to update overtime');
   }
@@ -50,16 +59,16 @@ async function deleteOvertime(id: string): Promise<void> {
   const response = await fetch(`/api/overtime/${id}`, {
     method: 'DELETE',
   });
-  const result: ApiResponse<void> = await response.json();
+  const result = await response.json();
   if (!result.success) {
     throw new Error(result.error || 'Failed to delete overtime');
   }
 }
 
-export function useOvertime() {
+export function useOvertime(page: number = 1, limit: number = 10) {
   return useQuery({
-    queryKey: [QUERY_KEY],
-    queryFn: fetchOvertime,
+    queryKey: [QUERY_KEY, page, limit],
+    queryFn: () => fetchOvertime(page, limit),
   });
 }
 

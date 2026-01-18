@@ -9,39 +9,72 @@ import { getToken } from 'next-auth/jwt'
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Static and public assets - skip entirely
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next()
+  }
+
+  // Allow all auth routes to pass through without any checks
+  // NextAuth handles its own authentication logic
+  if (pathname.startsWith('/api/auth')) {
+    return addSecurityHeaders(NextResponse.next(), request)
+  }
+
   // Get authentication token
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  })
+  let token = null
+  try {
+    token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
+  } catch (error) {
+    console.error('Error getting token:', error)
+    // Continue without token - will be treated as unauthenticated
+  }
 
-  // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/api/auth']
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+  // Handle root path - redirect based on auth status
+  if (pathname === '/') {
+    if (token) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
 
-  // Allow public routes
-  if (isPublicRoute) {
-    // If already authenticated and trying to access login, redirect to dashboard
-    if (pathname === '/login' && token) {
+  // Handle login page
+  if (pathname === '/login') {
+    // If already authenticated, redirect to dashboard
+    if (token) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
+  // Allow not-found page
+  if (pathname === '/not-found') {
+    return addSecurityHeaders(NextResponse.next(), request)
+  }
+
   // Protect dashboard and API routes
   if (!token) {
-    // API routes return 401, dashboard routes redirect
+    // API routes return 401
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
       )
     }
+    // Dashboard routes - redirect to login
     if (pathname.startsWith('/dashboard')) {
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('callbackUrl', pathname)
       return NextResponse.redirect(loginUrl)
     }
+    // Any other protected route without auth - show not found
+    return NextResponse.rewrite(new URL('/not-found', request.url))
   }
 
   // Check token expiry for authenticated routes
@@ -52,7 +85,10 @@ export async function proxy(request: NextRequest) {
         { status: 401 }
       )
     }
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('callbackUrl', pathname)
+    loginUrl.searchParams.set('session_expired', '1')
+    return NextResponse.redirect(loginUrl)
   }
 
   return addSecurityHeaders(NextResponse.next(), request)

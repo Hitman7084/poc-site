@@ -29,12 +29,12 @@ const createPrismaClient = () => {
   // During build phase, return a mock
   if (process.env.NEXT_PHASE === 'phase-production-build') {
     console.warn('Prisma Client not initialized - build phase')
-    return null as any as PrismaClient
+    return null as unknown as PrismaClient
   }
 
   if (!process.env.DATABASE_URL) {
     console.warn('Prisma Client not initialized - no DATABASE_URL')
-    return null as any as PrismaClient
+    return null as unknown as PrismaClient
   }
   
   const pool = new Pool(getPoolConfig())
