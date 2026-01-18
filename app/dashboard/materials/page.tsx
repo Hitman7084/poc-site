@@ -42,13 +42,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
-import { ExportToExcel, filterByDateRange, filterBySites, type ExportFilters } from '@/components/ExportToExcel';
+import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate, formatCurrency } from '@/lib/export-utils';
 import { Pagination } from '@/components/Pagination';
 
 export default function MaterialsPage() {
   const [page, setPage] = useState(1);
   const [selectedSite, setSelectedSite] = useState<{ id: string; name: string } | null>(null);
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<MaterialWithRelations | null>(null);
   const [formData, setFormData] = useState<MaterialInput>({
@@ -70,12 +72,21 @@ export default function MaterialsPage() {
   const updateMutation = useUpdateMaterial();
   const deleteMutation = useDeleteMaterial();
 
-  // Filter materials by selected site
+  // Filter materials by selected site and date range
   const filteredMaterials = useMemo(() => {
     if (!materials) return [];
-    if (!selectedSite) return materials;
-    return materials.filter(m => m.siteId === selectedSite.id);
-  }, [materials, selectedSite]);
+    let filtered = materials;
+    
+    // Filter by site
+    if (selectedSite) {
+      filtered = filtered.filter(m => m.siteId === selectedSite.id);
+    }
+    
+    // Filter by date range
+    filtered = filterByDateRange(filtered, (m) => m.date, fromDate, toDate);
+    
+    return filtered;
+  }, [materials, selectedSite, fromDate, toDate]);
 
   const handleOpenDialog = (material?: MaterialWithRelations) => {
     if (material) {
@@ -147,22 +158,8 @@ export default function MaterialsPage() {
   const handleExport = async (filters: ExportFilters) => {
     if (!materials) return;
 
-    let dataToExport = [...materials];
-
-    // Apply date range filter
-    dataToExport = filterByDateRange(
-      dataToExport,
-      (m) => m.date,
-      filters.fromDate,
-      filters.toDate
-    );
-
-    // Apply site filter
-    dataToExport = filterBySites(
-      dataToExport,
-      (m) => m.siteId,
-      filters.selectedSiteIds
-    );
+    // Use filtered materials (already filtered by site and date)
+    let dataToExport = [...filteredMaterials];
 
     await exportToExcel(dataToExport, {
       filename: 'materials_records',
@@ -223,9 +220,12 @@ export default function MaterialsPage() {
 
       {/* Export Section */}
       <ExportToExcel
-        sites={sites}
-        showSiteFilter={true}
+        showSiteFilter={false}
         onExport={handleExport}
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
       />
 
       {!filteredMaterials || filteredMaterials.length === 0 ? (

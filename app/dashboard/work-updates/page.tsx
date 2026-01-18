@@ -30,7 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
-import { ExportToExcel, filterByDateRange, filterBySites, type ExportFilters } from '@/components/ExportToExcel';
+import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate } from '@/lib/export-utils';
 import { Pagination } from '@/components/Pagination';
 
@@ -38,6 +38,8 @@ export default function WorkUpdatesPage() {
   const isHydrated = useHydrated();
   const [page, setPage] = useState(1);
   const [selectedSite, setSelectedSite] = useState<{ id: string; name: string } | null>(null);
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUpdate, setEditingUpdate] = useState<WorkUpdateWithRelations | null>(null);
   const [formData, setFormData] = useState<WorkUpdateInput>({
@@ -67,12 +69,21 @@ export default function WorkUpdatesPage() {
   const updateMutation = useUpdateWorkUpdate();
   const deleteMutation = useDeleteWorkUpdate();
 
-  // Filter work updates by selected site
+  // Filter work updates by selected site and date range
   const filteredUpdates = useMemo(() => {
     if (!updates) return [];
-    if (!selectedSite) return updates;
-    return updates.filter(u => u.siteId === selectedSite.id);
-  }, [updates, selectedSite]);
+    let filtered = updates;
+    
+    // Filter by site
+    if (selectedSite) {
+      filtered = filtered.filter(u => u.siteId === selectedSite.id);
+    }
+    
+    // Filter by date range
+    filtered = filterByDateRange(filtered, (u) => u.date, fromDate, toDate);
+    
+    return filtered;
+  }, [updates, selectedSite, fromDate, toDate]);
 
   const handleOpenDialog = (update?: WorkUpdateWithRelations) => {
     if (update) {
@@ -135,22 +146,8 @@ export default function WorkUpdatesPage() {
   const handleExport = async (filters: ExportFilters) => {
     if (!updates) return;
 
-    let dataToExport = [...updates];
-
-    // Apply date range filter
-    dataToExport = filterByDateRange(
-      dataToExport,
-      (u) => u.date,
-      filters.fromDate,
-      filters.toDate
-    );
-
-    // Apply site filter
-    dataToExport = filterBySites(
-      dataToExport,
-      (u) => u.siteId,
-      filters.selectedSiteIds
-    );
+    // Use filtered updates (already filtered by site and date)
+    let dataToExport = [...filteredUpdates];
 
     await exportToExcel(dataToExport, {
       filename: 'work_updates',
@@ -209,9 +206,12 @@ export default function WorkUpdatesPage() {
 
       {/* Export Section */}
       <ExportToExcel
-        sites={sites}
-        showSiteFilter={true}
+        showSiteFilter={false}
         onExport={handleExport}
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
       />
 
       {!filteredUpdates || filteredUpdates.length === 0 ? (

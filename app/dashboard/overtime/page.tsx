@@ -30,6 +30,8 @@ import { toast } from 'sonner';
 export default function OvertimePage() {
   const [page, setPage] = useState(1);
   const [selectedSite, setSelectedSite] = useState<{ id: string; name: string } | null>(null);
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOvertime, setEditingOvertime] = useState<OvertimeWithRelations | null>(null);
   const [formData, setFormData] = useState<OvertimeInput>({
@@ -52,12 +54,21 @@ export default function OvertimePage() {
 
   const totalAmount = formData.extraHours * formData.rate;
 
-  // Filter overtime by selected site
+  // Filter overtime by selected site and date range
   const filteredOvertime = useMemo(() => {
     if (!overtime) return [];
-    if (!selectedSite) return overtime;
-    return overtime.filter(o => o.siteId === selectedSite.id);
-  }, [overtime, selectedSite]);
+    let filtered = overtime;
+    
+    // Filter by site
+    if (selectedSite) {
+      filtered = filtered.filter(o => o.siteId === selectedSite.id);
+    }
+    
+    // Filter by date range
+    filtered = filterByDateRange(filtered, (o) => o.date, fromDate, toDate);
+    
+    return filtered;
+  }, [overtime, selectedSite, fromDate, toDate]);
 
   const handleOpenDialog = (record?: OvertimeWithRelations) => {
     if (record) {
@@ -118,15 +129,8 @@ export default function OvertimePage() {
   const handleExport = async (filters: ExportFilters) => {
     if (!overtime) return;
 
-    let dataToExport = [...overtime];
-
-    // Apply date range filter
-    dataToExport = filterByDateRange(
-      dataToExport,
-      (o) => o.date,
-      filters.fromDate,
-      filters.toDate
-    );
+    // Use filtered overtime (already filtered by site and date)
+    let dataToExport = [...filteredOvertime];
 
     await exportToExcel(dataToExport, {
       filename: 'overtime_records',
@@ -188,6 +192,10 @@ export default function OvertimePage() {
       <ExportToExcel
         showSiteFilter={false}
         onExport={handleExport}
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
       />
 
       {!filteredOvertime || filteredOvertime.length === 0 ? (

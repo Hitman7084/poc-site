@@ -10,6 +10,7 @@ export const createWorkerSchema = z.object({
   email: z.string().email().optional(),
   role: z.string().optional(),
   dailyRate: z.number().positive().optional(),
+  assignedSites: z.string().optional(),
   isActive: z.boolean().default(true),
 })
 

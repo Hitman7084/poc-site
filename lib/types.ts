@@ -49,6 +49,7 @@ export type Worker = {
   email: string | null;
   role: string | null;
   dailyRate: number | null;
+  assignedSites: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -206,6 +207,7 @@ export type WorkerInput = {
   email?: string;
   role?: string;
   dailyRate?: number;
+  assignedSites?: string;
   isActive?: boolean;
 };
 

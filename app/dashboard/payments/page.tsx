@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, Pencil, Trash2, DollarSign, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -29,6 +29,8 @@ import { Pagination } from '@/components/Pagination';
 
 export default function PaymentsPage() {
   const [page, setPage] = useState(1);
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [formData, setFormData] = useState<PaymentInput>({
@@ -47,6 +49,12 @@ export default function PaymentsPage() {
   const createMutation = useCreatePayment();
   const updateMutation = useUpdatePayment();
   const deleteMutation = useDeletePayment();
+
+  // Filter payments by date range
+  const filteredPayments = useMemo(() => {
+    if (!payments) return [];
+    return filterByDateRange(payments, (p) => p.paymentDate, fromDate, toDate);
+  }, [payments, fromDate, toDate]);
 
   const handleOpenDialog = (payment?: Payment) => {
     if (payment) {
@@ -120,15 +128,8 @@ export default function PaymentsPage() {
   const handleExport = async (filters: ExportFilters) => {
     if (!payments) return;
 
-    let dataToExport = [...payments];
-
-    // Apply date range filter
-    dataToExport = filterByDateRange(
-      dataToExport,
-      (p) => p.paymentDate,
-      filters.fromDate,
-      filters.toDate
-    );
+    // Use filtered payments (already filtered by date)
+    let dataToExport = [...filteredPayments];
 
     await exportToExcel(dataToExport, {
       filename: 'payments',
@@ -172,13 +173,17 @@ export default function PaymentsPage() {
       <ExportToExcel
         showSiteFilter={false}
         onExport={handleExport}
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
       />
 
-      {!payments || payments.length === 0 ? (
+      {!filteredPayments || filteredPayments.length === 0 ? (
         <Card className="p-12">
           <EmptyState
             title="No payment records found"
-            description="Start tracking client payments"
+            description={fromDate || toDate ? "No payments found for the selected date range" : "Start tracking client payments"}
             action={<Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Add Payment</Button>}
           />
         </Card>
@@ -198,7 +203,7 @@ export default function PaymentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payments.map((payment, index) => (
+              {filteredPayments.map((payment, index) => (
                 <TableRow key={payment.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>

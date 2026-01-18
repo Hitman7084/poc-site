@@ -65,15 +65,16 @@ model User {
 // Worker - employees working on sites
 // Linked to attendance, overtime records
 model Worker {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  email     String?
-  role      String? // e.g., "Mason", "Carpenter", "Laborer"
-  dailyRate Float? // Standard daily rate for overtime calculations
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  phone         String?
+  email         String?
+  role          String? // e.g., "Mason", "Carpenter", "Laborer"
+  dailyRate     Float? // Standard daily rate for overtime calculations
+  assignedSites String? // Comma-separated site names or IDs
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
   attendanceRecords AttendanceRecord[]

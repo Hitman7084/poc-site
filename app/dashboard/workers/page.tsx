@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, Users } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Pencil, Trash2, Users, Check, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkers, useCreateWorker, useUpdateWorker, useDeleteWorker } from '@/hooks/useWorkers';
+import { useAllSites } from '@/hooks/useSites';
 import type { Worker, WorkerInput } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -25,7 +26,11 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
@@ -36,11 +41,14 @@ import { Pagination } from '@/components/Pagination';
 
 export default function WorkersPage() {
   const [page, setPage] = useState(1);
+  const [selectedSiteFilter, setSelectedSiteFilter] = useState<{ id: string; name: string } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [workerToDelete, setWorkerToDelete] = useState<string | null>(null);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
+  const [sitesDropdownOpen, setSitesDropdownOpen] = useState(false);
   const [formData, setFormData] = useState<WorkerInput>({
     name: '',
     phone: '',
@@ -48,14 +56,29 @@ export default function WorkersPage() {
     role: '',
     dailyRate: undefined,
     isActive: true,
+    assignedSites: '',
   });
 
   const { data, isLoading, error, refetch } = useWorkers(page);
   const workers = data?.data;
   const pagination = data?.pagination;
+  const { data: sites } = useAllSites();
+  const activeSites = sites?.filter(s => s.isActive) || [];
   const createMutation = useCreateWorker();
   const updateMutation = useUpdateWorker();
   const deleteMutation = useDeleteWorker();
+
+  // Filter workers by selected site
+  const filteredWorkers = useMemo(() => {
+    if (!workers) return [];
+    if (!selectedSiteFilter) return workers;
+    
+    return workers.filter(worker => {
+      if (!worker.assignedSites) return false;
+      const siteNames = worker.assignedSites.split(',').map(s => s.trim());
+      return siteNames.includes(selectedSiteFilter.name);
+    });
+  }, [workers, selectedSiteFilter]);
 
   const handleOpenDialog = (worker?: Worker) => {
     if (worker) {
@@ -67,7 +90,18 @@ export default function WorkersPage() {
         role: worker.role || '',
         dailyRate: worker.dailyRate || undefined,
         isActive: worker.isActive,
+        assignedSites: worker.assignedSites || '',
       });
+      // Parse comma-separated site names to match with site IDs
+      if (worker.assignedSites && activeSites.length > 0) {
+        const siteNames = worker.assignedSites.split(',').map(s => s.trim());
+        const matchedSiteIds = activeSites
+          .filter(site => siteNames.includes(site.name))
+          .map(site => site.id);
+        setSelectedSiteIds(matchedSiteIds);
+      } else {
+        setSelectedSiteIds([]);
+      }
     } else {
       setEditingWorker(null);
       setFormData({
@@ -77,7 +111,9 @@ export default function WorkersPage() {
         role: '',
         dailyRate: undefined,
         isActive: true,
+        assignedSites: '',
       });
+      setSelectedSiteIds([]);
     }
     setIsDialogOpen(true);
   };
@@ -108,11 +144,17 @@ export default function WorkersPage() {
 
     setErrors({});
 
+    // Convert selected site IDs to comma-separated site names
+    const assignedSitesString = selectedSiteIds.length > 0
+      ? selectedSiteIds.map(id => activeSites.find(s => s.id === id)?.name).filter(Boolean).join(', ')
+      : undefined;
+
     const submitData: WorkerInput = {
       ...formData,
       phone: formData.phone || undefined,
       email: formData.email || undefined,
       role: formData.role || undefined,
+      assignedSites: assignedSitesString,
     };
 
     try {
@@ -153,8 +195,8 @@ export default function WorkersPage() {
   const handleExport = async (_filters: ExportFilters) => {
     if (!workers) return;
 
-    // Workers don't have dates, so we export all workers
-    await exportToExcel(workers, {
+    // Export filtered workers
+    await exportToExcel(filteredWorkers, {
       filename: 'workers',
       sheetName: 'Workers',
       columns: [
@@ -163,11 +205,12 @@ export default function WorkersPage() {
         { header: 'Phone', accessor: (w) => w.phone || '' },
         { header: 'Email', accessor: (w) => w.email || '' },
         { header: 'Daily Rate', accessor: (w) => w.dailyRate ? formatCurrency(w.dailyRate) : '' },
+        { header: 'Assigned Sites', accessor: (w) => w.assignedSites || '' },
         { header: 'Active', accessor: (w) => formatBoolean(w.isActive) },
         { header: 'Created At', accessor: (w) => formatDate(w.createdAt) },
       ],
     });
-    toast.success(`Exported ${workers.length} workers to Excel`);
+    toast.success(`Exported ${filteredWorkers.length} workers to Excel`);
   };
 
   if (isLoading) return <LoadingState message="Loading workers..." />;
@@ -186,10 +229,28 @@ export default function WorkersPage() {
             <p className="text-xs text-muted-foreground">Manage your construction workforce</p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} size="sm" className="h-8">
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          Add Worker
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Site Filter Dropdown */}
+          <Select 
+            value={selectedSiteFilter?.id || 'all'} 
+            onValueChange={(value) => setSelectedSiteFilter(value === 'all' ? null : activeSites.find(s => s.id === value) || null)}
+          >
+            <SelectTrigger className="h-8 w-[180px] text-sm">
+              <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Sites" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sites</SelectItem>
+              {activeSites.map((site) => (
+                <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => handleOpenDialog()} size="sm" className="h-8">
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Add Worker
+          </Button>
+        </div>
       </div>
 
       {/* Export Section */}
@@ -198,11 +259,11 @@ export default function WorkersPage() {
         onExport={handleExport}
       />
 
-      {!workers || workers.length === 0 ? (
+      {!filteredWorkers || filteredWorkers.length === 0 ? (
         <Card className="p-8">
           <EmptyState
             title="No workers found"
-            description="Get started by adding your first worker"
+            description={selectedSiteFilter ? `No workers assigned to ${selectedSiteFilter.name}` : "Get started by adding your first worker"}
             action={
               <Button onClick={() => handleOpenDialog()} size="sm">
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -221,14 +282,14 @@ export default function WorkersPage() {
                   <TableHead className="h-9 text-xs">Name</TableHead>
                   <TableHead className="h-9 text-xs">Role</TableHead>
                   <TableHead className="h-9 text-xs">Phone</TableHead>
-                  <TableHead className="h-9 text-xs">Email</TableHead>
                   <TableHead className="h-9 text-xs">Daily Rate</TableHead>
+                  <TableHead className="h-9 text-xs">Assigned Sites</TableHead>
                   <TableHead className="h-9 text-xs">Status</TableHead>
                   <TableHead className="h-9 text-xs text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {workers.map((worker, index) => (
+                {filteredWorkers.map((worker, index) => (
                   <TableRow key={worker.id}>
                     <TableCell className="py-2 text-sm text-muted-foreground">
                       {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
@@ -236,9 +297,11 @@ export default function WorkersPage() {
                     <TableCell className="py-2 font-medium text-sm">{worker.name}</TableCell>
                     <TableCell className="py-2 text-sm text-muted-foreground">{worker.role || '-'}</TableCell>
                     <TableCell className="py-2 text-sm text-muted-foreground">{worker.phone || '-'}</TableCell>
-                    <TableCell className="py-2 text-sm text-muted-foreground">{worker.email || '-'}</TableCell>
                     <TableCell className="py-2 text-sm">
                       {worker.dailyRate ? `₹${worker.dailyRate.toFixed(2)}` : '-'}
+                    </TableCell>
+                    <TableCell className="py-2 text-sm text-muted-foreground max-w-[150px] truncate" title={worker.assignedSites || ''}>
+                      {worker.assignedSites || '-'}
                     </TableCell>
                     <TableCell className="py-2">
                       <Badge variant={worker.isActive ? 'default' : 'secondary'} className="text-xs h-5">
@@ -379,6 +442,67 @@ export default function WorkersPage() {
                     })
                   }
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="assignedSites">Assigned Sites</Label>
+                <Popover open={sitesDropdownOpen} onOpenChange={setSitesDropdownOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between font-normal"
+                    >
+                      <span className="truncate">
+                        {selectedSiteIds.length === 0
+                          ? 'Select sites...'
+                          : selectedSiteIds.length === 1
+                          ? activeSites.find(s => s.id === selectedSiteIds[0])?.name
+                          : `${selectedSiteIds.length} sites selected`}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <ScrollArea className="h-[250px]">
+                      <div className="p-2">
+                        {activeSites.length === 0 ? (
+                          <p className="text-sm text-muted-foreground p-2">No active sites available</p>
+                        ) : (
+                          activeSites.map((site) => (
+                            <button
+                              key={site.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedSiteIds(prev =>
+                                  prev.includes(site.id)
+                                    ? prev.filter(id => id !== site.id)
+                                    : [...prev, site.id]
+                                );
+                              }}
+                              className={cn(
+                                "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-sm hover:bg-accent cursor-pointer",
+                                selectedSiteIds.includes(site.id) && "bg-accent/50"
+                              )}
+                            >
+                              <div className={cn(
+                                "flex h-4 w-4 items-center justify-center rounded-sm border",
+                                selectedSiteIds.includes(site.id)
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "border-muted-foreground/30"
+                              )}>
+                                {selectedSiteIds.includes(site.id) && <Check className="h-3 w-3" />}
+                              </div>
+                              <span className="truncate">{site.name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground">
+                  Select the sites this worker is assigned to
+                </p>
               </div>
 
               <div className="flex items-center space-x-2">

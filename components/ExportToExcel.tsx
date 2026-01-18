@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Download, Calendar, MapPin, ChevronDown, Check, Info } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,11 @@ type ExportToExcelProps = {
   showSiteFilter?: boolean;
   onExport: (filters: ExportFilters) => void | Promise<void>;
   isExporting?: boolean;
+  // Controlled date state props
+  fromDate?: Date | undefined;
+  toDate?: Date | undefined;
+  onFromDateChange?: (date: Date | undefined) => void;
+  onToDateChange?: (date: Date | undefined) => void;
 };
 
 export function ExportToExcel({
@@ -30,13 +35,40 @@ export function ExportToExcel({
   showSiteFilter = false,
   onExport,
   isExporting = false,
+  // Controlled date props
+  fromDate: controlledFromDate,
+  toDate: controlledToDate,
+  onFromDateChange,
+  onToDateChange,
 }: ExportToExcelProps) {
-  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
-  const [toDate, setToDate] = useState<Date | undefined>(undefined);
+  // Internal state for uncontrolled mode
+  const [internalFromDate, setInternalFromDate] = useState<Date | undefined>(undefined);
+  const [internalToDate, setInternalToDate] = useState<Date | undefined>(undefined);
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [fromCalendarOpen, setFromCalendarOpen] = useState(false);
   const [toCalendarOpen, setToCalendarOpen] = useState(false);
   const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
+
+  // Use controlled values if provided, otherwise use internal state
+  const isControlled = onFromDateChange !== undefined || onToDateChange !== undefined;
+  const fromDate = isControlled ? controlledFromDate : internalFromDate;
+  const toDate = isControlled ? controlledToDate : internalToDate;
+
+  const setFromDate = (date: Date | undefined) => {
+    if (onFromDateChange) {
+      onFromDateChange(date);
+    } else {
+      setInternalFromDate(date);
+    }
+  };
+
+  const setToDate = (date: Date | undefined) => {
+    if (onToDateChange) {
+      onToDateChange(date);
+    } else {
+      setInternalToDate(date);
+    }
+  };
 
   const activeSites = useMemo(() => {
     if (!sites) return [];
