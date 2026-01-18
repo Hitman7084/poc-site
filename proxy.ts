@@ -85,7 +85,10 @@ export async function proxy(request: NextRequest) {
         { status: 401 }
       )
     }
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('callbackUrl', pathname)
+    loginUrl.searchParams.set('session_expired', '1')
+    return NextResponse.redirect(loginUrl)
   }
 
   return addSecurityHeaders(NextResponse.next(), request)

@@ -2,8 +2,14 @@ import NextAuth, { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcrypt'
+import crypto from 'crypto'
 
 const isProduction = process.env.NODE_ENV === 'production'
+
+// Generate a unique session token for single-session enforcement
+function generateSessionToken(): string {
+  return crypto.randomBytes(32).toString('hex')
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -39,6 +45,15 @@ export const authOptions: NextAuthOptions = {
           if (!isPasswordValid) {
             return null
           }
+
+          // Generate new session token - this invalidates any existing sessions
+          const sessionToken = generateSessionToken()
+          
+          // Update user with new session token
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { sessionToken }
+          })
           
           // Return user object for session
           return {
@@ -46,6 +61,7 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             name: user.name || user.email,
             role: user.role,
+            sessionToken,
           }
         } catch (error) {
           console.error('Authentication error:', error)
@@ -57,7 +73,7 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
     maxAge: 24 * 60 * 60, // 24 hours
-    updateAge: 60 * 60, // Refresh token every hour
+    updateAge: 30 * 60, // Refresh token every 30 minutes
   },
   pages: {
     signIn: '/login',
@@ -68,6 +84,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.role = user.role
+        token.sessionToken = user.sessionToken
       }
       return token
     },
@@ -75,6 +92,23 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as string
+        session.user.sessionToken = token.sessionToken as string
+        
+        // Validate session token against database
+        try {
+          const user = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { sessionToken: true }
+          })
+          
+          // If session tokens don't match, invalidate the session
+          if (!user || user.sessionToken !== token.sessionToken) {
+            throw new Error('SessionInvalidated')
+          }
+        } catch (error) {
+          console.error('Session validation error:', error)
+          throw new Error('SessionInvalidated')
+        }
       }
       return session
     },
