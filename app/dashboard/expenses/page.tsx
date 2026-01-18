@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, Pencil, Trash2, Receipt } from 'lucide-react';
 import {
   useExpenses,
@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 
 export default function ExpensesPage() {
   const [page, setPage] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [formData, setFormData] = useState<ExpenseInput>({
@@ -46,6 +47,13 @@ export default function ExpensesPage() {
   const createMutation = useCreateExpense();
   const updateMutation = useUpdateExpense();
   const deleteMutation = useDeleteExpense();
+
+  // Filter expenses by selected category
+  const filteredExpenses = useMemo(() => {
+    if (!expenses) return [];
+    if (selectedCategory === 'all') return expenses;
+    return expenses.filter(e => e.category === selectedCategory);
+  }, [expenses, selectedCategory]);
 
   const handleOpenDialog = (expense?: Expense) => {
     if (expense) {
@@ -142,7 +150,7 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-rose-500/10 rounded-xl">
             <Receipt className="h-6 w-6 text-rose-600 dark:text-rose-400" />
@@ -152,10 +160,26 @@ export default function ExpensesPage() {
             <p className="text-sm text-muted-foreground">Track business and site expenses</p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Expense
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Category Filter Dropdown */}
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="h-9 w-[180px] text-sm">
+              <Receipt className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Expenses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Expenses</SelectItem>
+              <SelectItem value={ExpenseCategory.OFFICE}>Office</SelectItem>
+              <SelectItem value={ExpenseCategory.SITE_VISIT}>Site Visit</SelectItem>
+              <SelectItem value={ExpenseCategory.PARTY_VISIT}>Party Visit</SelectItem>
+              <SelectItem value={ExpenseCategory.OTHER}>Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={() => handleOpenDialog()} className="shadow-sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Expense
+          </Button>
+        </div>
       </div>
 
       {/* Export Section */}
@@ -164,11 +188,11 @@ export default function ExpensesPage() {
         onExport={handleExport}
       />
 
-      {!expenses || expenses.length === 0 ? (
+      {!filteredExpenses || filteredExpenses.length === 0 ? (
         <Card className="p-12">
           <EmptyState
             title="No expenses found"
-            description="Start tracking business expenses"
+            description={selectedCategory !== 'all' ? `No ${getCategoryLabel(selectedCategory as ExpenseCategory).toLowerCase()} expenses found` : "Start tracking business expenses"}
             action={<Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Add Expense</Button>}
           />
         </Card>
@@ -187,7 +211,7 @@ export default function ExpensesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {expenses.map((expense, index) => (
+              {filteredExpenses.map((expense, index) => (
                 <TableRow key={expense.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
@@ -250,6 +274,7 @@ export default function ExpensesPage() {
                     <SelectItem value={ExpenseCategory.OFFICE}>Office</SelectItem>
                     <SelectItem value={ExpenseCategory.SITE_VISIT}>Site Visit</SelectItem>
                     <SelectItem value={ExpenseCategory.PARTY_VISIT}>Party Visit</SelectItem>
+                    <SelectItem value={ExpenseCategory.OTHER}>Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

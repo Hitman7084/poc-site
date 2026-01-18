@@ -30,6 +30,8 @@ enum ExpenseCategory {
   OFFICE
   SITE_VISIT
   PARTY_VISIT
+  OTHER
+  ALL_EXPENSES
 }
 
 enum PendingWorkStatus {

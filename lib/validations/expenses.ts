@@ -5,7 +5,7 @@ import { z } from 'zod'
 // ============================================
 
 export const createExpenseSchema = z.object({
-  category: z.enum(['OFFICE', 'SITE_VISIT', 'PARTY_VISIT']),
+  category: z.enum(['OFFICE', 'SITE_VISIT', 'PARTY_VISIT', 'OTHER']),
   amount: z.number().positive(),
   description: z.string().min(1),
   date: z.string().datetime().or(z.date()),

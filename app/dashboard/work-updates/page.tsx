@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Image as ImageIcon, Video } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Pencil, Trash2, Image as ImageIcon, Video, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useWorkUpdates,
@@ -37,6 +37,7 @@ import { Pagination } from '@/components/Pagination';
 export default function WorkUpdatesPage() {
   const isHydrated = useHydrated();
   const [page, setPage] = useState(1);
+  const [selectedSite, setSelectedSite] = useState<{ id: string; name: string } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUpdate, setEditingUpdate] = useState<WorkUpdateWithRelations | null>(null);
   const [formData, setFormData] = useState<WorkUpdateInput>({
@@ -65,6 +66,13 @@ export default function WorkUpdatesPage() {
   const createMutation = useCreateWorkUpdate();
   const updateMutation = useUpdateWorkUpdate();
   const deleteMutation = useDeleteWorkUpdate();
+
+  // Filter work updates by selected site
+  const filteredUpdates = useMemo(() => {
+    if (!updates) return [];
+    if (!selectedSite) return updates;
+    return updates.filter(u => u.siteId === selectedSite.id);
+  }, [updates, selectedSite]);
 
   const handleOpenDialog = (update?: WorkUpdateWithRelations) => {
     if (update) {
@@ -165,7 +173,7 @@ export default function WorkUpdatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-indigo-500/10 rounded-xl">
             <ImageIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
@@ -175,10 +183,28 @@ export default function WorkUpdatesPage() {
             <p className="text-sm text-muted-foreground">Daily progress with photos and videos</p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Update
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Site Filter Dropdown */}
+          <Select 
+            value={selectedSite?.id || 'all'} 
+            onValueChange={(value) => setSelectedSite(value === 'all' ? null : sites?.find(s => s.id === value) || null)}
+          >
+            <SelectTrigger className="h-9 w-[180px] text-sm">
+              <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Sites" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sites</SelectItem>
+              {sites?.map((site) => (
+                <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => handleOpenDialog()} className="shadow-sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Update
+          </Button>
+        </div>
       </div>
 
       {/* Export Section */}
@@ -188,11 +214,11 @@ export default function WorkUpdatesPage() {
         onExport={handleExport}
       />
 
-      {!updates || updates.length === 0 ? (
+      {!filteredUpdates || filteredUpdates.length === 0 ? (
         <Card className="p-12">
           <EmptyState
             title="No work updates found"
-            description="Start documenting daily progress"
+            description={selectedSite ? `No updates found for ${selectedSite.name}` : "Start documenting daily progress"}
             action={<Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Add Update</Button>}
           />
         </Card>
@@ -213,7 +239,7 @@ export default function WorkUpdatesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {updates.map((update, index) => (
+                {filteredUpdates.map((update, index) => (
                   <TableRow key={update.id}>
                     <TableCell className="py-2 text-sm text-muted-foreground">
                       {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}

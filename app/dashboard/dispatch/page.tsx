@@ -35,7 +35,8 @@ export default function DispatchPage() {
   const isHydrated = useHydrated();
   const [page, setPage] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [fromSiteId, setFromSiteId] = useState<string>('all');
+  const [toSiteId, setToSiteId] = useState<string>('all');
   const [calendarOpen, setCalendarOpen] = useState<boolean>(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingDispatch, setEditingDispatch] = useState<DispatchWithRelations | null>(null);
@@ -103,7 +104,7 @@ export default function DispatchPage() {
     });
   }, [sites, selectedDate]);
 
-  // Filter dispatches by selected date and site
+  // Filter dispatches by selected date, from site, and to site
   const filteredDispatches = useMemo(() => {
     if (!dispatches || !selectedDate) return [];
     
@@ -112,13 +113,14 @@ export default function DispatchPage() {
       const selectedDay = startOfDay(selectedDate);
       const matchesDate = isSameDay(dispatchDate, selectedDay);
       
-      if (selectedSite) {
-        return matchesDate && (d.fromSiteId === selectedSite.id || d.toSiteId === selectedSite.id);
-      }
+      if (!matchesDate) return false;
       
-      return matchesDate;
+      const matchesFromSite = fromSiteId === 'all' || d.fromSiteId === fromSiteId;
+      const matchesToSite = toSiteId === 'all' || d.toSiteId === toSiteId;
+      
+      return matchesFromSite && matchesToSite;
     });
-  }, [dispatches, selectedDate, selectedSite]);
+  }, [dispatches, selectedDate, fromSiteId, toSiteId]);
 
   // Handle export
   const handleExport = async (filters: ExportFilters) => {
@@ -134,13 +136,14 @@ export default function DispatchPage() {
       filters.toDate
     );
 
-    // Apply site filter
-    if (filters.selectedSiteIds.length > 0) {
-      dataToExport = dataToExport.filter(
-        (d) =>
-          filters.selectedSiteIds.includes(d.fromSiteId) ||
-          filters.selectedSiteIds.includes(d.toSiteId)
-      );
+    // Apply from site filter
+    if (fromSiteId !== 'all') {
+      dataToExport = dataToExport.filter((d) => d.fromSiteId === fromSiteId);
+    }
+
+    // Apply to site filter
+    if (toSiteId !== 'all') {
+      dataToExport = dataToExport.filter((d) => d.toSiteId === toSiteId);
     }
 
     await exportToExcel(dataToExport, {
@@ -183,7 +186,7 @@ export default function DispatchPage() {
     } else {
       setEditingDispatch(null);
       setFormData({
-        fromSiteId: selectedSite?.id || '',
+        fromSiteId: fromSiteId !== 'all' ? fromSiteId : '',
         toSiteId: '',
         materialName: '',
         quantity: 0,
@@ -303,19 +306,30 @@ export default function DispatchPage() {
             </Button>
           </div>
 
-          {/* Site Filter Dropdown */}
-          <Select 
-            value={selectedSite?.id || 'all'} 
-            onValueChange={(value) => setSelectedSite(value === 'all' ? null : activeSitesForDate.find(s => s.id === value) || null)}
-          >
-            <SelectTrigger className="h-8 w-[180px] text-sm">
+          {/* From Site Filter */}
+          <Select value={fromSiteId} onValueChange={setFromSiteId}>
+            <SelectTrigger className="h-8 w-[160px] text-sm">
               <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-              <SelectValue placeholder="All Sites" />
+              <SelectValue placeholder="From: All" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Sites</SelectItem>
+              <SelectItem value="all">From: All Sites</SelectItem>
               {activeSitesForDate.map((site) => (
-                <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+                <SelectItem key={site.id} value={site.id}>From: {site.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* To Site Filter */}
+          <Select value={toSiteId} onValueChange={setToSiteId}>
+            <SelectTrigger className="h-8 w-[160px] text-sm">
+              <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="To: All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">To: All Sites</SelectItem>
+              {activeSitesForDate.map((site) => (
+                <SelectItem key={site.id} value={site.id}>To: {site.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -329,8 +343,7 @@ export default function DispatchPage() {
 
       {/* Export Section - Compact */}
       <ExportToExcel
-        sites={sites}
-        showSiteFilter={true}
+        showSiteFilter={false}
         onExport={handleExport}
       />
 
@@ -341,7 +354,16 @@ export default function DispatchPage() {
             <div>
               <CardTitle className="text-base flex items-center gap-2">
                 Dispatches
-                {selectedSite && <Badge variant="outline" className="font-normal">{selectedSite.name}</Badge>}
+                {fromSiteId !== 'all' && (
+                  <Badge variant="outline" className="font-normal">
+                    From: {activeSitesForDate.find(s => s.id === fromSiteId)?.name}
+                  </Badge>
+                )}
+                {toSiteId !== 'all' && (
+                  <Badge variant="outline" className="font-normal">
+                    To: {activeSitesForDate.find(s => s.id === toSiteId)?.name}
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription className="text-xs">
                 {filteredDispatches.length} record{filteredDispatches.length !== 1 ? 's' : ''} for {format(selectedDate, 'MMM d, yyyy')}
@@ -353,9 +375,11 @@ export default function DispatchPage() {
           {filteredDispatches.length === 0 ? (
             <EmptyState
               title="No dispatch records"
-              description={selectedSite 
-                ? `No dispatches for ${selectedSite.name} on this date` 
-                : "No dispatches recorded for this date"}
+              description={
+                fromSiteId !== 'all' || toSiteId !== 'all'
+                  ? `No dispatches found for the selected filters on this date`
+                  : "No dispatches recorded for this date"
+              }
               action={
                 <Button onClick={() => handleOpenDialog()} size="sm">
                   <Plus className="mr-1.5 h-3.5 w-3.5" />

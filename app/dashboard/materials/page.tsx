@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, Package } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Pencil, Trash2, Package, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useMaterials,
@@ -48,6 +48,7 @@ import { Pagination } from '@/components/Pagination';
 
 export default function MaterialsPage() {
   const [page, setPage] = useState(1);
+  const [selectedSite, setSelectedSite] = useState<{ id: string; name: string } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<MaterialWithRelations | null>(null);
   const [formData, setFormData] = useState<MaterialInput>({
@@ -68,6 +69,13 @@ export default function MaterialsPage() {
   const createMutation = useCreateMaterial();
   const updateMutation = useUpdateMaterial();
   const deleteMutation = useDeleteMaterial();
+
+  // Filter materials by selected site
+  const filteredMaterials = useMemo(() => {
+    if (!materials) return [];
+    if (!selectedSite) return materials;
+    return materials.filter(m => m.siteId === selectedSite.id);
+  }, [materials, selectedSite]);
 
   const handleOpenDialog = (material?: MaterialWithRelations) => {
     if (material) {
@@ -179,7 +187,7 @@ export default function MaterialsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-purple-500/10 rounded-xl">
             <Package className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -189,10 +197,28 @@ export default function MaterialsPage() {
             <p className="text-sm text-muted-foreground">Track material usage and inventory</p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Material
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Site Filter Dropdown */}
+          <Select 
+            value={selectedSite?.id || 'all'} 
+            onValueChange={(value) => setSelectedSite(value === 'all' ? null : sites?.find(s => s.id === value) || null)}
+          >
+            <SelectTrigger className="h-9 w-[180px] text-sm">
+              <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Sites" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sites</SelectItem>
+              {sites?.map((site) => (
+                <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => handleOpenDialog()} className="shadow-sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Material
+          </Button>
+        </div>
       </div>
 
       {/* Export Section */}
@@ -202,11 +228,11 @@ export default function MaterialsPage() {
         onExport={handleExport}
       />
 
-      {!materials || materials.length === 0 ? (
+      {!filteredMaterials || filteredMaterials.length === 0 ? (
         <Card className="p-12">
           <EmptyState
             title="No material records found"
-            description="Start tracking materials for your sites"
+            description={selectedSite ? `No materials found for ${selectedSite.name}` : "Start tracking materials for your sites"}
             action={
               <Button onClick={() => handleOpenDialog()}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -231,7 +257,7 @@ export default function MaterialsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {materials.map((material, index) => (
+              {filteredMaterials.map((material, index) => (
                 <TableRow key={material.id}>
                   <TableCell className="text-muted-foreground">
                     {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}

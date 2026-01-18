@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, Clock } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Pencil, Trash2, Clock, MapPin } from 'lucide-react';
 import {
   useOvertime,
   useCreateOvertime,
@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 
 export default function OvertimePage() {
   const [page, setPage] = useState(1);
+  const [selectedSite, setSelectedSite] = useState<{ id: string; name: string } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOvertime, setEditingOvertime] = useState<OvertimeWithRelations | null>(null);
   const [formData, setFormData] = useState<OvertimeInput>({
@@ -50,6 +51,13 @@ export default function OvertimePage() {
   const deleteMutation = useDeleteOvertime();
 
   const totalAmount = formData.extraHours * formData.rate;
+
+  // Filter overtime by selected site
+  const filteredOvertime = useMemo(() => {
+    if (!overtime) return [];
+    if (!selectedSite) return overtime;
+    return overtime.filter(o => o.siteId === selectedSite.id);
+  }, [overtime, selectedSite]);
 
   const handleOpenDialog = (record?: OvertimeWithRelations) => {
     if (record) {
@@ -142,7 +150,7 @@ export default function OvertimePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-cyan-500/10 rounded-xl">
             <Clock className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
@@ -152,10 +160,28 @@ export default function OvertimePage() {
             <p className="text-sm text-muted-foreground">Track extra hours and overtime pay</p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Overtime
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Site Filter Dropdown */}
+          <Select 
+            value={selectedSite?.id || 'all'} 
+            onValueChange={(value) => setSelectedSite(value === 'all' ? null : sites?.find(s => s.id === value) || null)}
+          >
+            <SelectTrigger className="h-9 w-[180px] text-sm">
+              <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Sites" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sites</SelectItem>
+              {sites?.map((site) => (
+                <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => handleOpenDialog()} className="shadow-sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Overtime
+          </Button>
+        </div>
       </div>
 
       {/* Export Section */}
@@ -164,11 +190,11 @@ export default function OvertimePage() {
         onExport={handleExport}
       />
 
-      {!overtime || overtime.length === 0 ? (
+      {!filteredOvertime || filteredOvertime.length === 0 ? (
         <Card className="p-12">
           <EmptyState
             title="No overtime records found"
-            description="Start tracking overtime hours and payments"
+            description={selectedSite ? `No overtime found for ${selectedSite.name}` : "Start tracking overtime hours and payments"}
             action={<Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Add Overtime</Button>}
           />
         </Card>
@@ -188,7 +214,7 @@ export default function OvertimePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {overtime.map((record, index) => (
+              {filteredOvertime.map((record, index) => (
                 <TableRow key={record.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>

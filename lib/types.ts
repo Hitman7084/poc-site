@@ -18,6 +18,8 @@ export enum ExpenseCategory {
   OFFICE = 'OFFICE',
   SITE_VISIT = 'SITE_VISIT',
   PARTY_VISIT = 'PARTY_VISIT',
+  OTHER = 'OTHER',
+  ALL_EXPENSES = 'ALL_EXPENSES',
 }
 
 export enum PendingWorkStatus {

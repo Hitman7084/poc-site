@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, Pencil, Trash2, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import {
   usePendingWork,
@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 
 export default function PendingWorkPage() {
   const [page, setPage] = useState(1);
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWork, setEditingWork] = useState<PendingWorkWithRelations | null>(null);
   const [formData, setFormData] = useState<PendingWorkInput>({
@@ -51,6 +52,13 @@ export default function PendingWorkPage() {
   const createMutation = useCreatePendingWork();
   const updateMutation = useUpdatePendingWork();
   const deleteMutation = useDeletePendingWork();
+
+  // Filter pending work by selected status
+  const filteredPendingWork = useMemo(() => {
+    if (!pendingWork) return [];
+    if (selectedStatus === 'all') return pendingWork;
+    return pendingWork.filter(pw => pw.status === selectedStatus);
+  }, [pendingWork, selectedStatus]);
 
   const handleOpenDialog = (work?: PendingWorkWithRelations) => {
     if (work) {
@@ -179,7 +187,7 @@ export default function PendingWorkPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-amber-500/10 rounded-xl">
             <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
@@ -189,10 +197,40 @@ export default function PendingWorkPage() {
             <p className="text-sm text-muted-foreground">Track incomplete and pending tasks</p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Task
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Status Filter Dropdown */}
+          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <SelectTrigger className="h-9 w-[180px] text-sm">
+              <AlertCircle className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value={PendingWorkStatus.PENDING}>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                  Pending
+                </div>
+              </SelectItem>
+              <SelectItem value={PendingWorkStatus.IN_PROGRESS}>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5 text-yellow-500" />
+                  In Progress
+                </div>
+              </SelectItem>
+              <SelectItem value={PendingWorkStatus.COMPLETED}>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  Completed
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={() => handleOpenDialog()} className="shadow-sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Task
+          </Button>
+        </div>
       </div>
 
       {/* Export Section */}
@@ -201,11 +239,11 @@ export default function PendingWorkPage() {
         onExport={handleExport}
       />
 
-      {!pendingWork || pendingWork.length === 0 ? (
+      {!filteredPendingWork || filteredPendingWork.length === 0 ? (
         <Card className="p-12">
           <EmptyState
             title="No pending tasks found"
-            description="Track tasks that need attention"
+            description={selectedStatus !== 'all' ? `No tasks with ${selectedStatus.replace('_', ' ').toLowerCase()} status` : "Track tasks that need attention"}
             action={<Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Add Task</Button>}
           />
         </Card>
@@ -225,7 +263,7 @@ export default function PendingWorkPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pendingWork.map((work, index) => (
+              {filteredPendingWork.map((work, index) => (
                 <TableRow key={work.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell className="font-medium max-w-xs">
