@@ -59,12 +59,11 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-3/5 relative overflow-hidden">
         {/* Background Image */}
         <Image
-          src="/construction.png"
+          src="/constructions.png"
           alt="Construction Site"
           fill
           className="object-cover"
           priority
-          quality={90}
         />
         
         {/* Dark gradient from bottom for text readability */}
