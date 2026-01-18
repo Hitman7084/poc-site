@@ -108,7 +108,7 @@ function SidebarContent({
                 © 2026 Singh Fire Engineers
               </p>
               <p className="text-[10px] text-sidebar-foreground/40 mt-1">
-                Crafted by <span className="text-sidebar-primary/80">Himanshu Mall</span>
+                Crafted by <span className="text-sidebar-primary/80">Himanshu Mall & Piyush Kumar</span>
               </p>
             </>
           ) : (

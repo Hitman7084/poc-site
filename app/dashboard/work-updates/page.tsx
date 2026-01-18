@@ -15,7 +15,14 @@ import type { WorkUpdateInput, WorkUpdateWithRelations } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -190,34 +197,83 @@ export default function WorkUpdatesPage() {
           />
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {updates.map((update) => (
-            <Card key={update.id} className="overflow-hidden">
-              {update.photoUrl && (
-                <img src={update.photoUrl} alt="Work update" className="h-48 w-full object-cover" />
-              )}
-              <div className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">{update.site.name}</h3>
-                  <span className="text-sm text-muted-foreground">{new Date(update.date).toLocaleDateString()}</span>
-                </div>
-                <p className="text-sm text-muted-foreground line-clamp-3">{update.description}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {update.photoUrl && <span className="flex items-center gap-1"><ImageIcon className="h-3 w-3" />Photo</span>}
-                  {update.videoUrl && <span className="flex items-center gap-1"><Video className="h-3 w-3" />Video</span>}
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(update)}>
-                    <Pencil className="h-3 w-3 mr-1" />Edit
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(update.id)}>
-                    <Trash2 className="h-3 w-3 mr-1" />Delete
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="h-9 text-xs w-12">S.No</TableHead>
+                  <TableHead className="h-9 text-xs">Date</TableHead>
+                  <TableHead className="h-9 text-xs">Site</TableHead>
+                  <TableHead className="h-9 text-xs">Description</TableHead>
+                  <TableHead className="h-9 text-xs">Photo</TableHead>
+                  <TableHead className="h-9 text-xs">Video</TableHead>
+                  <TableHead className="h-9 text-xs">Created By</TableHead>
+                  <TableHead className="h-9 text-xs text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {updates.map((update, index) => (
+                  <TableRow key={update.id}>
+                    <TableCell className="py-2 text-sm text-muted-foreground">
+                      {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
+                    </TableCell>
+                    <TableCell className="py-2 text-sm">
+                      {new Date(update.date).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="py-2 font-medium text-sm">{update.site.name}</TableCell>
+                    <TableCell className="py-2 text-sm text-muted-foreground max-w-xs truncate">
+                      {update.description}
+                    </TableCell>
+                    <TableCell className="py-2 text-sm">
+                      {update.photoUrl ? (
+                        <a 
+                          href={update.photoUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-2 text-sm">
+                      {update.videoUrl ? (
+                        <a 
+                          href={update.videoUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <Video className="h-4 w-4" />
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-2 text-sm text-muted-foreground">
+                      {update.createdBy || '-'}
+                    </TableCell>
+                    <TableCell className="py-2 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDialog(update)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(update.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
       )}
 
       {pagination && (
