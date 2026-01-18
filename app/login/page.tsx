@@ -75,10 +75,6 @@ export default function LoginPage() {
             </div>
           </div>
           
-          <h2 className="text-4xl font-bold leading-tight mb-4">
-            Fire Safety &<br />Construction Solutions<br />You Can Trust
-          </h2>
-          
           <p className="text-white/80 text-lg mb-12 max-w-md">
             Track workers, materials, attendance, and expenses - all in one powerful platform built for fire safety and construction teams.
           </p>
