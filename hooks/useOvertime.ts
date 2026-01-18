@@ -102,3 +102,25 @@ export function useDeleteOvertime() {
     },
   });
 }
+
+// Export function to fetch all overtime for export with filters
+export type ExportOvertimeParams = {
+  siteId?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+export async function fetchAllOvertimeForExport(params: ExportOvertimeParams = {}): Promise<OvertimeWithRelations[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('all', 'true');
+  if (params.siteId) searchParams.set('siteId', params.siteId);
+  if (params.fromDate) searchParams.set('fromDate', params.fromDate);
+  if (params.toDate) searchParams.set('toDate', params.toDate);
+  
+  const response = await fetch(`/api/overtime?${searchParams.toString()}`);
+  const result = await response.json();
+  if (!result.success || !result.data) {
+    throw new Error('Failed to fetch overtime for export');
+  }
+  return result.data;
+}

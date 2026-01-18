@@ -102,3 +102,23 @@ export function useDeletePayment() {
     },
   });
 }
+
+// Export function to fetch all payments for export with filters
+export type ExportPaymentsParams = {
+  fromDate?: string;
+  toDate?: string;
+};
+
+export async function fetchAllPaymentsForExport(params: ExportPaymentsParams = {}): Promise<Payment[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('all', 'true');
+  if (params.fromDate) searchParams.set('fromDate', params.fromDate);
+  if (params.toDate) searchParams.set('toDate', params.toDate);
+  
+  const response = await fetch(`/api/payments?${searchParams.toString()}`);
+  const result = await response.json();
+  if (!result.success || !result.data) {
+    throw new Error('Failed to fetch payments for export');
+  }
+  return result.data;
+}

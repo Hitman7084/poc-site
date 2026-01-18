@@ -91,3 +91,34 @@ export function useBulkUpdateAttendance() {
     },
   });
 }
+
+// Export function to fetch all attendance for export with filters
+export type ExportAttendanceParams = {
+  siteIds?: string[];
+  fromDate?: string;
+  toDate?: string;
+};
+
+export async function fetchAllAttendanceForExport(params: ExportAttendanceParams = {}): Promise<AttendanceWithRelations[]> {
+  const searchParams = new URLSearchParams();
+  if (params.siteIds && params.siteIds.length > 0) {
+    // For multiple sites, we'll need to make separate calls or modify API to accept multiple siteIds
+    // For now, fetch all and filter client-side
+  }
+  if (params.fromDate) searchParams.set('fromDate', params.fromDate);
+  if (params.toDate) searchParams.set('toDate', params.toDate);
+  
+  const response = await fetch(`/api/attendance?${searchParams.toString()}`);
+  const result: ApiResponse<AttendanceWithRelations[]> = await response.json();
+  if (!result.success || !result.data) {
+    throw new Error('Failed to fetch attendance for export');
+  }
+  
+  // Filter by siteIds if provided
+  let data = result.data;
+  if (params.siteIds && params.siteIds.length > 0) {
+    data = data.filter(a => params.siteIds!.includes(a.siteId));
+  }
+  
+  return data;
+}

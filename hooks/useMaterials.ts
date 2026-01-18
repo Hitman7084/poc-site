@@ -102,3 +102,25 @@ export function useDeleteMaterial() {
     },
   });
 }
+
+// Export function to fetch all materials for export with filters
+export type ExportMaterialsParams = {
+  siteId?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+export async function fetchAllMaterialsForExport(params: ExportMaterialsParams = {}): Promise<MaterialWithRelations[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('all', 'true');
+  if (params.siteId) searchParams.set('siteId', params.siteId);
+  if (params.fromDate) searchParams.set('fromDate', params.fromDate);
+  if (params.toDate) searchParams.set('toDate', params.toDate);
+  
+  const response = await fetch(`/api/materials?${searchParams.toString()}`);
+  const result = await response.json();
+  if (!result.success || !result.data) {
+    throw new Error('Failed to fetch materials for export');
+  }
+  return result.data;
+}

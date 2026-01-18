@@ -104,3 +104,27 @@ export function useDeleteDispatch() {
     },
   });
 }
+
+// Export function to fetch all dispatches for export with filters
+export type ExportDispatchParams = {
+  fromSiteId?: string;
+  toSiteId?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+export async function fetchAllDispatchesForExport(params: ExportDispatchParams = {}): Promise<DispatchWithRelations[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('all', 'true');
+  if (params.fromSiteId) searchParams.set('fromSiteId', params.fromSiteId);
+  if (params.toSiteId) searchParams.set('toSiteId', params.toSiteId);
+  if (params.fromDate) searchParams.set('fromDate', params.fromDate);
+  if (params.toDate) searchParams.set('toDate', params.toDate);
+  
+  const response = await fetch(`/api/dispatch?${searchParams.toString()}`);
+  const result = await response.json();
+  if (!result.success || !result.data) {
+    throw new Error('Failed to fetch dispatches for export');
+  }
+  return result.data;
+}

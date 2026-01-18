@@ -102,3 +102,25 @@ export function useDeleteWorkUpdate() {
     },
   });
 }
+
+// Export function to fetch all work updates for export with filters
+export type ExportWorkUpdatesParams = {
+  siteId?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+export async function fetchAllWorkUpdatesForExport(params: ExportWorkUpdatesParams = {}): Promise<WorkUpdateWithRelations[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('all', 'true');
+  if (params.siteId) searchParams.set('siteId', params.siteId);
+  if (params.fromDate) searchParams.set('fromDate', params.fromDate);
+  if (params.toDate) searchParams.set('toDate', params.toDate);
+  
+  const response = await fetch(`/api/work-updates?${searchParams.toString()}`);
+  const result = await response.json();
+  if (!result.success || !result.data) {
+    throw new Error('Failed to fetch work updates for export');
+  }
+  return result.data;
+}

@@ -104,3 +104,25 @@ export function useDeletePendingWork() {
     },
   });
 }
+
+// Export function to fetch all pending work for export with filters
+export type ExportPendingWorkParams = {
+  siteId?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+export async function fetchAllPendingWorkForExport(params: ExportPendingWorkParams = {}): Promise<PendingWorkWithRelations[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('all', 'true');
+  if (params.siteId) searchParams.set('siteId', params.siteId);
+  if (params.fromDate) searchParams.set('fromDate', params.fromDate);
+  if (params.toDate) searchParams.set('toDate', params.toDate);
+  
+  const response = await fetch(`/api/pending-work?${searchParams.toString()}`);
+  const result = await response.json();
+  if (!result.success || !result.data) {
+    throw new Error('Failed to fetch pending work for export');
+  }
+  return result.data;
+}

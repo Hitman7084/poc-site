@@ -30,6 +30,36 @@ async function fetchAllWorkers(): Promise<Worker[]> {
   return result.data;
 }
 
+export type ExportWorkersParams = {
+  siteId?: string;
+  isActive?: boolean;
+};
+
+export async function fetchAllWorkersForExport(params: ExportWorkersParams = {}): Promise<Worker[]> {
+  const queryParams = new URLSearchParams({ all: 'true' });
+  
+  if (params.isActive !== undefined) {
+    queryParams.append('isActive', String(params.isActive));
+  }
+  
+  const response = await fetch(`/api/workers?${queryParams.toString()}`);
+  const result: PaginatedResponse<Worker> = await response.json();
+  
+  if (!result.success || !result.data) {
+    throw new Error('Failed to fetch workers for export');
+  }
+  
+  // If siteId is provided, filter workers assigned to that site
+  let workers = result.data;
+  if (params.siteId) {
+    workers = workers.filter(worker => 
+      worker.assignedSites?.split(',').map(s => s.trim()).includes(params.siteId!)
+    );
+  }
+  
+  return workers;
+}
+
 async function createWorker(data: WorkerInput): Promise<Worker> {
   const response = await fetch('/api/workers', {
     method: 'POST',
