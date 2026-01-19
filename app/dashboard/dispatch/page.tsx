@@ -8,6 +8,7 @@ import {
   useCreateDispatch,
   useUpdateDispatch,
   useDeleteDispatch,
+  fetchAllDispatchesForExport,
 } from '@/hooks/useDispatch';
 import { useAllSites } from '@/hooks/useSites';
 import type { DispatchInput, DispatchWithRelations } from '@/lib/types';
@@ -85,32 +86,40 @@ export default function DispatchPage() {
     return filtered;
   }, [dispatches, fromDate, toDate, fromSiteId, toSiteId]);
 
-  // Handle export
+  // Handle export - fetches all data from API with filters from ExportToExcel component
   const handleExport = async (filters: ExportFilters) => {
-    if (!dispatches) return;
+    try {
+      // Fetch all dispatches with filters from API
+      const dataToExport = await fetchAllDispatchesForExport({
+        fromSiteId: fromSiteId !== 'all' ? fromSiteId : undefined,
+        toSiteId: toSiteId !== 'all' ? toSiteId : undefined,
+        fromDate: filters.fromDate?.toISOString().split('T')[0],
+        toDate: filters.toDate?.toISOString().split('T')[0],
+      });
 
-    // Use filtered dispatches (already filtered by date and sites)
-    let dataToExport = [...filteredDispatches];
-
-    await exportToExcel(dataToExport, {
-      filename: 'dispatch_records',
-      sheetName: 'Dispatches',
-      columns: [
-        { header: 'Dispatch Date', accessor: (d) => formatDate(d.dispatchDate) },
-        { header: 'From Site', accessor: (d) => d.fromSite.name },
-        { header: 'To Site', accessor: (d) => d.toSite.name },
-        { header: 'Material Name', accessor: 'materialName' },
-        { header: 'Quantity', accessor: 'quantity' },
-        { header: 'Unit', accessor: 'unit' },
-        { header: 'Received', accessor: (d) => formatBoolean(d.isReceived) },
-        { header: 'Received Date', accessor: (d) => formatDate(d.receivedDate) },
-        { header: 'Dispatched By', accessor: (d) => d.dispatchedBy || '' },
-        { header: 'Received By', accessor: (d) => d.receivedBy || '' },
-        { header: 'Notes', accessor: (d) => d.notes || '' },
-        { header: 'Created At', accessor: (d) => formatDate(d.createdAt) },
-      ],
-    });
-    toast.success(`Exported ${dataToExport.length} dispatch records to Excel`);
+      await exportToExcel(dataToExport, {
+        filename: 'dispatch_records',
+        sheetName: 'Dispatches',
+        columns: [
+          { header: 'Dispatch Date', accessor: (d) => formatDate(d.dispatchDate) },
+          { header: 'From Site', accessor: (d) => d.fromSite.name },
+          { header: 'To Site', accessor: (d) => d.toSite.name },
+          { header: 'Material Name', accessor: 'materialName' },
+          { header: 'Quantity', accessor: 'quantity' },
+          { header: 'Unit', accessor: 'unit' },
+          { header: 'Received', accessor: (d) => formatBoolean(d.isReceived) },
+          { header: 'Received Date', accessor: (d) => formatDate(d.receivedDate) },
+          { header: 'Dispatched By', accessor: (d) => d.dispatchedBy || '' },
+          { header: 'Received By', accessor: (d) => d.receivedBy || '' },
+          { header: 'Notes', accessor: (d) => d.notes || '' },
+          { header: 'Created At', accessor: (d) => formatDate(d.createdAt) },
+        ],
+      });
+      toast.success(`Exported ${dataToExport.length} dispatch records to Excel`);
+    } catch (err) {
+      console.error('Failed to export dispatches:', err);
+      toast.error('Failed to export dispatches');
+    }
   };
 
   const handleOpenDialog = (dispatch?: DispatchWithRelations) => {
@@ -389,7 +398,7 @@ export default function DispatchPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="quantity">Quantity *</Label>
-                  <Input id="quantity" type="number" step="0.01" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) })} required />
+                  <Input id="quantity" type="number" step="0.01" value={formData.quantity || ''} onChange={(e) => setFormData({ ...formData, quantity: e.target.value ? parseFloat(e.target.value) : 0 })} required />
                 </div>
 
                 <div className="space-y-2">

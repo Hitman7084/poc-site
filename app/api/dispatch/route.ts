@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
     const toSiteId = searchParams.get('toSiteId')
     const isReceived = searchParams.get('isReceived')
     const date = searchParams.get('date')
+    const fromDate = searchParams.get('fromDate')
+    const toDate = searchParams.get('toDate')
+    const fetchAll = searchParams.get('all') === 'true'
     const { page, limit, skip } = parsePaginationParams(searchParams)
 
     const where = {
@@ -25,6 +28,30 @@ export async function GET(request: NextRequest) {
       ...(toSiteId && { toSiteId }),
       ...(isReceived !== null && { isReceived: isReceived === 'true' }),
       ...(date && { dispatchDate: parseDate(date) }),
+      ...(fromDate || toDate ? {
+        dispatchDate: {
+          ...(fromDate && { gte: parseDate(fromDate) }),
+          ...(toDate && { lte: parseDate(toDate) }),
+        },
+      } : {}),
+    }
+
+    // If fetching all records (for export), skip pagination
+    if (fetchAll) {
+      const records = await prisma.dispatchRecord.findMany({
+        where,
+        include: {
+          fromSite: { select: { id: true, name: true } },
+          toSite: { select: { id: true, name: true } },
+        },
+        orderBy: { dispatchDate: 'desc' },
+      })
+      return apiPaginated(records, {
+        total: records.length,
+        page: 1,
+        limit: records.length,
+        totalPages: 1,
+      })
     }
 
     const [records, total] = await Promise.all([

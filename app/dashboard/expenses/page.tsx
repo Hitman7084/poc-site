@@ -7,6 +7,7 @@ import {
   useCreateExpense,
   useUpdateExpense,
   useDeleteExpense,
+  fetchAllExpensesForExport,
 } from '@/hooks/useExpenses';
 import type { ExpenseInput, Expense } from '@/lib/types';
 import { ExpenseCategory } from '@/lib/types';
@@ -115,21 +116,16 @@ export default function ExpensesPage() {
     return category.replace('_', ' ');
   };
 
-  // Handle export
+  // Handle export - fetches all data from API with filters from ExportToExcel component
   const handleExport = async (filters: ExportFilters) => {
-    if (!expenses) return;
+    try {
+      // Fetch all expenses with filters from API
+      const dataToExport = await fetchAllExpensesForExport({
+        fromDate: filters.fromDate?.toISOString().split('T')[0],
+        toDate: filters.toDate?.toISOString().split('T')[0],
+      });
 
-    let dataToExport = [...expenses];
-
-    // Apply date range filter
-    dataToExport = filterByDateRange(
-      dataToExport,
-      (e) => e.date,
-      filters.fromDate,
-      filters.toDate
-    );
-
-    await exportToExcel(dataToExport, {
+      await exportToExcel(dataToExport, {
       filename: 'expenses',
       sheetName: 'Expenses',
       columns: [
@@ -143,6 +139,10 @@ export default function ExpensesPage() {
       ],
     });
     toast.success(`Exported ${dataToExport.length} expense records to Excel`);
+    } catch (err) {
+      console.error('Failed to export expenses:', err);
+      toast.error('Failed to export expenses');
+    }
   };
 
   if (isLoading) return <LoadingState message="Loading expenses..." />;
@@ -287,7 +287,7 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="amount">Amount (₹) *</Label>
-                  <Input id="amount" type="number" step="0.01" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })} required />
+                  <Input id="amount" type="number" step="0.01" value={formData.amount || ''} onChange={(e) => setFormData({ ...formData, amount: e.target.value ? parseFloat(e.target.value) : 0 })} required />
                 </div>
 
                 <div className="space-y-2">

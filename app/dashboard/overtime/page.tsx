@@ -7,6 +7,7 @@ import {
   useCreateOvertime,
   useUpdateOvertime,
   useDeleteOvertime,
+  fetchAllOvertimeForExport,
 } from '@/hooks/useOvertime';
 import { useWorkers, useAllWorkers } from '@/hooks/useWorkers';
 import { useAllSites } from '@/hooks/useSites';
@@ -125,28 +126,38 @@ export default function OvertimePage() {
     }
   };
 
-  // Handle export
+  // Handle export - fetches all data from API with filters from ExportToExcel component
   const handleExport = async (filters: ExportFilters) => {
-    if (!overtime) return;
+    try {
+      // Build siteId from selectedSiteIds - use first selected site or undefined
+      const siteId = filters.selectedSiteIds.length > 0 ? filters.selectedSiteIds[0] : undefined;
+      
+      // Fetch all overtime with filters from API
+      const dataToExport = await fetchAllOvertimeForExport({
+        siteId,
+        fromDate: filters.fromDate?.toISOString().split('T')[0],
+        toDate: filters.toDate?.toISOString().split('T')[0],
+      });
 
-    // Use filtered overtime (already filtered by site and date)
-    let dataToExport = [...filteredOvertime];
-
-    await exportToExcel(dataToExport, {
-      filename: 'overtime_records',
-      sheetName: 'Overtime',
-      columns: [
-        { header: 'Date', accessor: (o) => formatDate(o.date) },
-        { header: 'Worker', accessor: (o) => o.worker.name },
-        { header: 'Site', accessor: (o) => o.site.name },
-        { header: 'Extra Hours', accessor: 'extraHours' },
-        { header: 'Rate/Hour', accessor: (o) => formatCurrency(o.rate) },
-        { header: 'Total Amount', accessor: (o) => formatCurrency(o.totalAmount) },
-        { header: 'Notes', accessor: (o) => o.notes || '' },
-        { header: 'Created At', accessor: (o) => formatDate(o.createdAt) },
-      ],
-    });
-    toast.success(`Exported ${dataToExport.length} overtime records to Excel`);
+      await exportToExcel(dataToExport, {
+        filename: 'overtime_records',
+        sheetName: 'Overtime',
+        columns: [
+          { header: 'Date', accessor: (o) => formatDate(o.date) },
+          { header: 'Worker', accessor: (o) => o.worker.name },
+          { header: 'Site', accessor: (o) => o.site.name },
+          { header: 'Extra Hours', accessor: 'extraHours' },
+          { header: 'Rate/Hour', accessor: (o) => formatCurrency(o.rate) },
+          { header: 'Total Amount', accessor: (o) => formatCurrency(o.totalAmount) },
+          { header: 'Notes', accessor: (o) => o.notes || '' },
+          { header: 'Created At', accessor: (o) => formatDate(o.createdAt) },
+        ],
+      });
+      toast.success(`Exported ${dataToExport.length} overtime records to Excel`);
+    } catch (err) {
+      console.error('Failed to export overtime:', err);
+      toast.error('Failed to export overtime');
+    }
   };
 
   if (isLoading) return <LoadingState message="Loading overtime records..." />;
@@ -302,12 +313,12 @@ export default function OvertimePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="extraHours">Extra Hours *</Label>
-                  <Input id="extraHours" type="number" step="0.5" value={formData.extraHours} onChange={(e) => setFormData({ ...formData, extraHours: parseFloat(e.target.value) })} required />
+                  <Input id="extraHours" type="number" step="0.5" value={formData.extraHours || ''} onChange={(e) => setFormData({ ...formData, extraHours: e.target.value ? parseFloat(e.target.value) : 0 })} required />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="rate">Rate/Hour (₹) *</Label>
-                  <Input id="rate" type="number" step="0.01" value={formData.rate} onChange={(e) => setFormData({ ...formData, rate: parseFloat(e.target.value) })} required />
+                  <Input id="rate" type="number" step="0.01" value={formData.rate || ''} onChange={(e) => setFormData({ ...formData, rate: e.target.value ? parseFloat(e.target.value) : 0 })} required />
                 </div>
               </div>
 

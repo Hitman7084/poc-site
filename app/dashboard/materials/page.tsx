@@ -8,6 +8,7 @@ import {
   useCreateMaterial,
   useUpdateMaterial,
   useDeleteMaterial,
+  fetchAllMaterialsForExport,
 } from '@/hooks/useMaterials';
 import { useAllSites } from '@/hooks/useSites';
 import type { MaterialInput, MaterialWithRelations } from '@/lib/types';
@@ -154,29 +155,39 @@ export default function MaterialsPage() {
     }
   };
 
-  // Handle export
+  // Handle export - fetches all data from API with filters from ExportToExcel component
   const handleExport = async (filters: ExportFilters) => {
-    if (!materials) return;
+    try {
+      // Build siteId from selectedSiteIds - use first selected site or undefined
+      const siteId = filters.selectedSiteIds.length > 0 ? filters.selectedSiteIds[0] : undefined;
+      
+      // Fetch all materials with filters from API
+      const dataToExport = await fetchAllMaterialsForExport({
+        siteId,
+        fromDate: filters.fromDate?.toISOString().split('T')[0],
+        toDate: filters.toDate?.toISOString().split('T')[0],
+      });
 
-    // Use filtered materials (already filtered by site and date)
-    let dataToExport = [...filteredMaterials];
-
-    await exportToExcel(dataToExport, {
-      filename: 'materials_records',
-      sheetName: 'Materials',
-      columns: [
-        { header: 'Date', accessor: (m) => formatDate(m.date) },
-        { header: 'Material Name', accessor: 'materialName' },
-        { header: 'Site', accessor: (m) => m.site.name },
-        { header: 'Quantity', accessor: 'quantity' },
-        { header: 'Unit', accessor: 'unit' },
-        { header: 'Cost', accessor: (m) => m.cost ? formatCurrency(m.cost) : '' },
-        { header: 'Supplier Name', accessor: (m) => m.supplierName || '' },
-        { header: 'Notes', accessor: (m) => m.notes || '' },
-        { header: 'Created At', accessor: (m) => formatDate(m.createdAt) },
-      ],
-    });
-    toast.success(`Exported ${dataToExport.length} material records to Excel`);
+      await exportToExcel(dataToExport, {
+        filename: 'materials_records',
+        sheetName: 'Materials',
+        columns: [
+          { header: 'Date', accessor: (m) => formatDate(m.date) },
+          { header: 'Material Name', accessor: 'materialName' },
+          { header: 'Site', accessor: (m) => m.site.name },
+          { header: 'Quantity', accessor: 'quantity' },
+          { header: 'Unit', accessor: 'unit' },
+          { header: 'Cost', accessor: (m) => m.cost ? formatCurrency(m.cost) : '' },
+          { header: 'Supplier Name', accessor: (m) => m.supplierName || '' },
+          { header: 'Notes', accessor: (m) => m.notes || '' },
+          { header: 'Created At', accessor: (m) => formatDate(m.createdAt) },
+        ],
+      });
+      toast.success(`Exported ${dataToExport.length} material records to Excel`);
+    } catch (err) {
+      console.error('Failed to export materials:', err);
+      toast.error('Failed to export materials');
+    }
   };
 
   if (isLoading) return <LoadingState message="Loading materials..." />;
@@ -366,9 +377,9 @@ export default function MaterialsPage() {
                     id="quantity"
                     type="number"
                     step="0.01"
-                    value={formData.quantity}
+                    value={formData.quantity || ''}
                     onChange={(e) =>
-                      setFormData({ ...formData, quantity: parseFloat(e.target.value) })
+                      setFormData({ ...formData, quantity: e.target.value ? parseFloat(e.target.value) : 0 })
                     }
                     required
                   />

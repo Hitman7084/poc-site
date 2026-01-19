@@ -8,6 +8,7 @@ import {
   useCreateWorkUpdate,
   useUpdateWorkUpdate,
   useDeleteWorkUpdate,
+  fetchAllWorkUpdatesForExport,
 } from '@/hooks/useWorkUpdates';
 import { useAllSites } from '@/hooks/useSites';
 import { useHydrated } from '@/hooks/useHydration';
@@ -142,27 +143,37 @@ export default function WorkUpdatesPage() {
     }
   };
 
-  // Handle export
+  // Handle export - fetches all data from API with filters from ExportToExcel component
   const handleExport = async (filters: ExportFilters) => {
-    if (!updates) return;
+    try {
+      // Build siteId from selectedSiteIds - use first selected site or undefined
+      const siteId = filters.selectedSiteIds.length > 0 ? filters.selectedSiteIds[0] : undefined;
+      
+      // Fetch all work updates with filters from API
+      const dataToExport = await fetchAllWorkUpdatesForExport({
+        siteId,
+        fromDate: filters.fromDate?.toISOString().split('T')[0],
+        toDate: filters.toDate?.toISOString().split('T')[0],
+      });
 
-    // Use filtered updates (already filtered by site and date)
-    let dataToExport = [...filteredUpdates];
-
-    await exportToExcel(dataToExport, {
-      filename: 'work_updates',
-      sheetName: 'Work Updates',
-      columns: [
-        { header: 'Date', accessor: (u) => formatDate(u.date) },
-        { header: 'Site', accessor: (u) => u.site.name },
-        { header: 'Description', accessor: 'description' },
-        { header: 'Photo URL', accessor: (u) => u.photoUrl || '' },
-        { header: 'Video URL', accessor: (u) => u.videoUrl || '' },
-        { header: 'Created By', accessor: (u) => u.createdBy || '' },
-        { header: 'Created At', accessor: (u) => formatDate(u.createdAt) },
-      ],
-    });
-    toast.success(`Exported ${dataToExport.length} work updates to Excel`);
+      await exportToExcel(dataToExport, {
+        filename: 'work_updates',
+        sheetName: 'Work Updates',
+        columns: [
+          { header: 'Date', accessor: (u) => formatDate(u.date) },
+          { header: 'Site', accessor: (u) => u.site.name },
+          { header: 'Description', accessor: 'description' },
+          { header: 'Photo URL', accessor: (u) => u.photoUrl || '' },
+          { header: 'Video URL', accessor: (u) => u.videoUrl || '' },
+          { header: 'Created By', accessor: (u) => u.createdBy || '' },
+          { header: 'Created At', accessor: (u) => formatDate(u.createdAt) },
+        ],
+      });
+      toast.success(`Exported ${dataToExport.length} work updates to Excel`);
+    } catch (err) {
+      console.error('Failed to export work updates:', err);
+      toast.error('Failed to export work updates');
+    }
   };
 
   if (isLoading) return <LoadingState message="Loading work updates..." />;

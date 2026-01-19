@@ -17,12 +17,39 @@ export async function GET(request: NextRequest) {
     const workerId = searchParams.get('workerId')
     const siteId = searchParams.get('siteId')
     const date = searchParams.get('date')
+    const fromDate = searchParams.get('fromDate')
+    const toDate = searchParams.get('toDate')
+    const fetchAll = searchParams.get('all') === 'true'
     const { page, limit, skip } = parsePaginationParams(searchParams)
 
     const where = {
       ...(workerId && { workerId }),
       ...(siteId && { siteId }),
       ...(date && { date: parseDate(date) }),
+      ...(fromDate || toDate ? {
+        date: {
+          ...(fromDate && { gte: parseDate(fromDate) }),
+          ...(toDate && { lte: parseDate(toDate) }),
+        },
+      } : {}),
+    }
+
+    // If fetching all records (for export), skip pagination
+    if (fetchAll) {
+      const records = await prisma.overtime.findMany({
+        where,
+        include: {
+          worker: { select: { id: true, name: true } },
+          site: { select: { id: true, name: true } },
+        },
+        orderBy: { date: 'desc' },
+      })
+      return apiPaginated(records, {
+        total: records.length,
+        page: 1,
+        limit: records.length,
+        totalPages: 1,
+      })
     }
 
     const [records, total] = await Promise.all([

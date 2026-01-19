@@ -145,9 +145,11 @@ export function ExportToExcel({
               <Button
                 variant="outline"
                 size="sm"
+                disabled={!fromDate}
                 className={cn(
                   'w-[130px] justify-start text-left font-normal h-8',
-                  !toDate && 'text-muted-foreground'
+                  !toDate && 'text-muted-foreground',
+                  !fromDate && 'opacity-50 cursor-not-allowed'
                 )}
               >
                 <Calendar className="mr-2 h-3.5 w-3.5" />

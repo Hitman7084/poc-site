@@ -8,6 +8,7 @@ import {
   useCreatePayment,
   useUpdatePayment,
   useDeletePayment,
+  fetchAllPaymentsForExport,
 } from '@/hooks/usePayments';
 import type { PaymentInput, Payment } from '@/lib/types';
 import { PaymentType } from '@/lib/types';
@@ -124,28 +125,34 @@ export default function PaymentsPage() {
     return <Badge variant={variants[type]}>{type}</Badge>;
   };
 
-  // Handle export
+  // Handle export - fetches all data from API with filters from ExportToExcel component
   const handleExport = async (filters: ExportFilters) => {
-    if (!payments) return;
+    try {
+      // Fetch all payments with filters from API
+      const dataToExport = await fetchAllPaymentsForExport({
+        fromDate: filters.fromDate?.toISOString().split('T')[0],
+        toDate: filters.toDate?.toISOString().split('T')[0],
+      });
 
-    // Use filtered payments (already filtered by date)
-    let dataToExport = [...filteredPayments];
-
-    await exportToExcel(dataToExport, {
-      filename: 'payments',
-      sheetName: 'Payments',
-      columns: [
-        { header: 'Payment Date', accessor: (p) => formatDate(p.paymentDate) },
-        { header: 'Client Name', accessor: 'clientName' },
-        { header: 'Project Name', accessor: (p) => p.projectName || '' },
-        { header: 'Payment Type', accessor: 'paymentType' },
-        { header: 'Amount', accessor: (p) => formatCurrency(p.amount) },
-        { header: 'Document URL', accessor: (p) => p.documentUrl || '' },
-        { header: 'Notes', accessor: (p) => p.notes || '' },
-        { header: 'Created At', accessor: (p) => formatDate(p.createdAt) },
-      ],
-    });
-    toast.success(`Exported ${dataToExport.length} payment records to Excel`);
+      await exportToExcel(dataToExport, {
+        filename: 'payments',
+        sheetName: 'Payments',
+        columns: [
+          { header: 'Payment Date', accessor: (p) => formatDate(p.paymentDate) },
+          { header: 'Client Name', accessor: 'clientName' },
+          { header: 'Project Name', accessor: (p) => p.projectName || '' },
+          { header: 'Payment Type', accessor: 'paymentType' },
+          { header: 'Amount', accessor: (p) => formatCurrency(p.amount) },
+          { header: 'Document URL', accessor: (p) => p.documentUrl || '' },
+          { header: 'Notes', accessor: (p) => p.notes || '' },
+          { header: 'Created At', accessor: (p) => formatDate(p.createdAt) },
+        ],
+      });
+      toast.success(`Exported ${dataToExport.length} payment records to Excel`);
+    } catch (err) {
+      console.error('Failed to export payments:', err);
+      toast.error('Failed to export payments');
+    }
   };
 
   if (isLoading) return <LoadingState message="Loading payments..." />;
@@ -282,7 +289,7 @@ export default function PaymentsPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="amount">Amount (₹) *</Label>
-                  <Input id="amount" type="number" step="0.01" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })} required />
+                  <Input id="amount" type="number" step="0.01" value={formData.amount || ''} onChange={(e) => setFormData({ ...formData, amount: e.target.value ? parseFloat(e.target.value) : 0 })} required />
                 </div>
               </div>
 

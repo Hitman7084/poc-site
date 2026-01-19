@@ -7,6 +7,7 @@ import {
   useCreatePendingWork,
   useUpdatePendingWork,
   useDeletePendingWork,
+  fetchAllPendingWorkForExport,
 } from '@/hooks/usePendingWork';
 import { useAllSites } from '@/hooks/useSites';
 import type { PendingWorkInput, PendingWorkWithRelations } from '@/lib/types';
@@ -149,21 +150,20 @@ export default function PendingWorkPage() {
     return <span className={`px-2 py-1 rounded text-xs font-medium ${colors[priority] || colors.Medium}`}>{priority}</span>;
   };
 
-  // Handle export
+  // Handle export - fetches all data from API with filters from ExportToExcel component
   const handleExport = async (filters: ExportFilters) => {
-    if (!pendingWork) return;
+    try {
+      // Build siteId from selectedSiteIds - use first selected site or undefined
+      const siteId = filters.selectedSiteIds.length > 0 ? filters.selectedSiteIds[0] : undefined;
+      
+      // Fetch all pending work with filters from API
+      const dataToExport = await fetchAllPendingWorkForExport({
+        siteId,
+        fromDate: filters.fromDate?.toISOString().split('T')[0],
+        toDate: filters.toDate?.toISOString().split('T')[0],
+      });
 
-    let dataToExport = [...pendingWork];
-
-    // Apply date range filter based on expected completion date
-    dataToExport = filterByDateRange(
-      dataToExport,
-      (p) => p.expectedCompletionDate,
-      filters.fromDate,
-      filters.toDate
-    );
-
-    await exportToExcel(dataToExport, {
+      await exportToExcel(dataToExport, {
       filename: 'pending_work',
       sheetName: 'Pending Work',
       columns: [
@@ -180,6 +180,10 @@ export default function PendingWorkPage() {
       ],
     });
     toast.success(`Exported ${dataToExport.length} pending work records to Excel`);
+    } catch (err) {
+      console.error('Failed to export pending work:', err);
+      toast.error('Failed to export pending work');
+    }
   };
 
   if (isLoading) return <LoadingState message="Loading pending work..." />;

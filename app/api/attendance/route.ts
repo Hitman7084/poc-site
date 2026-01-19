@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
     const siteId = searchParams.get('siteId')
     const date = searchParams.get('date')
     const status = searchParams.get('status')
+    const fromDate = searchParams.get('fromDate')
+    const toDate = searchParams.get('toDate')
 
     const records = await prisma.attendanceRecord.findMany({
       where: {
@@ -26,6 +28,12 @@ export async function GET(request: NextRequest) {
         ...(siteId && { siteId }),
         ...(date && { date: parseDate(date) }),
         ...(status && { status: status as AttendanceStatus }),
+        ...(fromDate || toDate ? {
+          date: {
+            ...(fromDate && { gte: parseDate(fromDate) }),
+            ...(toDate && { lte: parseDate(toDate) }),
+          },
+        } : {}),
       },
       include: {
         worker: { select: { id: true, name: true } },

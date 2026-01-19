@@ -17,11 +17,34 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const clientName = searchParams.get('clientName')
     const paymentType = searchParams.get('paymentType')
+    const fromDate = searchParams.get('fromDate')
+    const toDate = searchParams.get('toDate')
+    const fetchAll = searchParams.get('all') === 'true'
     const { page, limit, skip } = parsePaginationParams(searchParams)
 
     const where = {
       ...(clientName && { clientName: { contains: clientName, mode: 'insensitive' as const } }),
       ...(paymentType && { paymentType: paymentType as PaymentType }),
+      ...(fromDate || toDate ? {
+        paymentDate: {
+          ...(fromDate && { gte: parseDate(fromDate) }),
+          ...(toDate && { lte: parseDate(toDate) }),
+        },
+      } : {}),
+    }
+
+    // If fetching all records (for export), skip pagination
+    if (fetchAll) {
+      const records = await prisma.payment.findMany({
+        where,
+        orderBy: { paymentDate: 'desc' },
+      })
+      return apiPaginated(records, {
+        total: records.length,
+        page: 1,
+        limit: records.length,
+        totalPages: 1,
+      })
     }
 
     const [records, total] = await Promise.all([

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Plus, Pencil, Trash2, Users, Check, MapPin } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Check, MapPin, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import { useWorkers, useCreateWorker, useUpdateWorker, useDeleteWorker } from '@/hooks/useWorkers';
+import { useWorkers, useCreateWorker, useUpdateWorker, useDeleteWorker, fetchAllWorkersForExport } from '@/hooks/useWorkers';
 import { useAllSites } from '@/hooks/useSites';
 import type { Worker, WorkerInput } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,6 @@ import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { ExportToExcel, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate, formatCurrency, formatBoolean } from '@/lib/export-utils';
 import { Pagination } from '@/components/Pagination';
 
@@ -49,6 +48,7 @@ export default function WorkersPage() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [sitesDropdownOpen, setSitesDropdownOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [formData, setFormData] = useState<WorkerInput>({
     name: '',
     phone: '',
@@ -191,26 +191,41 @@ export default function WorkersPage() {
     }
   };
 
-  // Handle export - filters param ignored for workers since they don't have date-based filtering
-  const handleExport = async (_filters: ExportFilters) => {
-    if (!workers) return;
+  // Handle export - no date filtering for workers
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      // Fetch ALL workers with optional site filter
+      const allWorkers = await fetchAllWorkersForExport({
+        siteId: selectedSiteFilter?.name, // Use site name for filtering
+      });
 
-    // Export filtered workers
-    await exportToExcel(filteredWorkers, {
-      filename: 'workers',
-      sheetName: 'Workers',
-      columns: [
-        { header: 'Name', accessor: 'name' },
-        { header: 'Role', accessor: (w) => w.role || '' },
-        { header: 'Phone', accessor: (w) => w.phone || '' },
-        { header: 'Email', accessor: (w) => w.email || '' },
-        { header: 'Daily Rate', accessor: (w) => w.dailyRate ? formatCurrency(w.dailyRate) : '' },
-        { header: 'Assigned Sites', accessor: (w) => w.assignedSites || '' },
-        { header: 'Active', accessor: (w) => formatBoolean(w.isActive) },
-        { header: 'Created At', accessor: (w) => formatDate(w.createdAt) },
-      ],
-    });
-    toast.success(`Exported ${filteredWorkers.length} workers to Excel`);
+      if (allWorkers.length === 0) {
+        toast.error('No workers to export');
+        return;
+      }
+
+      await exportToExcel(allWorkers, {
+        filename: 'workers',
+        sheetName: 'Workers',
+        columns: [
+          { header: 'Name', accessor: 'name' },
+          { header: 'Role', accessor: (w) => w.role || '' },
+          { header: 'Phone', accessor: (w) => w.phone || '' },
+          { header: 'Email', accessor: (w) => w.email || '' },
+          { header: 'Daily Rate', accessor: (w) => w.dailyRate ? formatCurrency(w.dailyRate) : '' },
+          { header: 'Assigned Sites', accessor: (w) => w.assignedSites || '' },
+          { header: 'Active', accessor: (w) => formatBoolean(w.isActive) },
+          { header: 'Created At', accessor: (w) => formatDate(w.createdAt) },
+        ],
+      });
+      toast.success(`Exported ${allWorkers.length} workers to Excel`);
+    } catch (err) {
+      console.error('Failed to export workers:', err);
+      toast.error('Failed to export workers');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (isLoading) return <LoadingState message="Loading workers..." />;
@@ -246,18 +261,22 @@ export default function WorkersPage() {
               ))}
             </SelectContent>
           </Select>
+          <Button 
+            onClick={handleExport} 
+            variant="outline" 
+            size="sm" 
+            className="h-8"
+            disabled={isExporting || !filteredWorkers || filteredWorkers.length === 0}
+          >
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            {isExporting ? 'Exporting...' : 'Export'}
+          </Button>
           <Button onClick={() => handleOpenDialog()} size="sm" className="h-8">
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Add Worker
           </Button>
         </div>
       </div>
-
-      {/* Export Section */}
-      <ExportToExcel
-        showSiteFilter={false}
-        onExport={handleExport}
-      />
 
       {!filteredWorkers || filteredWorkers.length === 0 ? (
         <Card className="p-8">

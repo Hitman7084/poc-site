@@ -20,6 +20,7 @@ import {
   useAttendanceByDate,
   useBulkCreateAttendance,
   useBulkUpdateAttendance,
+  fetchAllAttendanceForExport,
 } from '@/hooks/useAttendanceByDate';
 import type { Site, SiteInput, AttendanceInput, AttendanceWithRelations, ApiResponse } from '@/lib/types';
 import { AttendanceStatus } from '@/lib/types';
@@ -40,6 +41,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
@@ -140,22 +142,21 @@ export default function SitesPage() {
     return true;
   };
 
-  // Get workers for the selected site
+  // Get workers for the selected site (only workers assigned to this site)
   const workersForSite = useMemo(() => {
-    if (!selectedSite || !workers || !attendance) return [];
-    
-    const workersWithAttendance = attendance
-      .filter(a => a.siteId === selectedSite.id)
-      .map(a => a.workerId);
+    if (!selectedSite || !workers) return [];
     
     const activeWorkers = workers.filter(w => w.isActive);
     
-    if (workersWithAttendance.length > 0) {
-      return activeWorkers.filter(w => workersWithAttendance.includes(w.id));
-    }
+    // Filter to only workers assigned to this site
+    const workersAssignedToSite = activeWorkers.filter(worker => {
+      if (!worker.assignedSites) return false;
+      const siteNames = worker.assignedSites.split(',').map(s => s.trim());
+      return siteNames.includes(selectedSite.name);
+    });
     
-    return activeWorkers;
-  }, [selectedSite, workers, attendance]);
+    return workersAssignedToSite;
+  }, [selectedSite, workers]);
 
   // Get attendance stats for a site on selected date
   const getSiteAttendanceStats = (siteId: string) => {
@@ -172,9 +173,16 @@ export default function SitesPage() {
     if (!selectedSite || !workers) return;
     
     const newAttendanceMap = new Map<string, WorkerAttendance>();
-    const activeWorkers = workers.filter(w => w.isActive);
     
-    activeWorkers.forEach(worker => {
+    // Get only workers assigned to this site
+    const activeWorkers = workers.filter(w => w.isActive);
+    const workersAssignedToThisSite = activeWorkers.filter(worker => {
+      if (!worker.assignedSites) return false;
+      const siteNames = worker.assignedSites.split(',').map(s => s.trim());
+      return siteNames.includes(selectedSite.name);
+    });
+    
+    workersAssignedToThisSite.forEach(worker => {
       const existingRecord = attendance?.find(
         a => a.workerId === worker.id && a.siteId === selectedSite.id
       );
@@ -349,34 +357,15 @@ export default function SitesPage() {
     setIsEditing(true);
   };
 
-  // Handle export attendance
+  // Handle export attendance - fetches all data from API with filters from ExportToExcel component
   const handleExportAttendance = async (filters: ExportFilters) => {
     try {
-      // Fetch all attendance records from API
-      const response = await fetch('/api/attendance');
-      const result: ApiResponse<AttendanceWithRelations[]> = await response.json();
-      
-      if (!result.success || !result.data) {
-        console.error('Failed to fetch attendance for export');
-        return;
-      }
-
-      let dataToExport = result.data;
-
-      // Apply date range filter
-      dataToExport = filterByDateRange(
-        dataToExport,
-        (a) => a.date,
-        filters.fromDate,
-        filters.toDate
-      );
-
-      // Apply site filter
-      dataToExport = filterBySites(
-        dataToExport,
-        (a) => a.siteId,
-        filters.selectedSiteIds
-      );
+      // Fetch all attendance records from API with filters
+      const dataToExport = await fetchAllAttendanceForExport({
+        siteIds: filters.selectedSiteIds,
+        fromDate: filters.fromDate?.toISOString().split('T')[0],
+        toDate: filters.toDate?.toISOString().split('T')[0],
+      });
 
       await exportToExcel(dataToExport, {
         filename: 'attendance_records',
@@ -618,50 +607,54 @@ export default function SitesPage() {
                   <span>Present</span>
                 </div>
                 
-                {/* Worker Rows */}
-                {Array.from(workerAttendance.values())
-                  .filter(wa => workersForSite.some(w => w.id === wa.workerId))
-                  .map((record) => (
-                    <div
-                      key={record.workerId}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-lg border transition-colors",
-                        record.isPresent 
-                          ? "bg-green-50 border-green-200 dark:bg-green-950/20" 
-                          : "bg-red-50 border-red-200 dark:bg-red-950/20",
-                        !isEditing && "opacity-75"
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "w-2 h-2 rounded-full",
-                          record.isPresent ? "bg-green-500" : "bg-red-500"
-                        )} />
-                        <div>
-                          <span className="font-medium">{record.workerName}</span>
-                          <p className="text-xs text-muted-foreground">{record.workerRole}</p>
+                {/* Worker Rows with ScrollArea */}
+                <ScrollArea className="h-[300px] pr-4">
+                  <div className="space-y-2">
+                    {Array.from(workerAttendance.values())
+                      .filter(wa => workersForSite.some(w => w.id === wa.workerId))
+                      .map((record) => (
+                        <div
+                          key={record.workerId}
+                          className={cn(
+                            "flex items-center justify-between p-3 rounded-lg border transition-colors",
+                            record.isPresent 
+                              ? "bg-green-50 border-green-200 dark:bg-green-950/20" 
+                              : "bg-red-50 border-red-200 dark:bg-red-950/20",
+                            !isEditing && "opacity-75"
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full",
+                              record.isPresent ? "bg-green-500" : "bg-red-500"
+                            )} />
+                            <div>
+                              <span className="font-medium">{record.workerName}</span>
+                              <p className="text-xs text-muted-foreground">{record.workerRole}</p>
+                            </div>
+                            {record.existingRecordId && (
+                              <Badge variant="outline" className="text-xs">Recorded</Badge>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <span className={cn(
+                              "text-sm",
+                              record.isPresent ? "text-green-600" : "text-red-600"
+                            )}>
+                              {record.isPresent ? 'Present' : 'Absent'}
+                            </span>
+                            <Checkbox
+                              checked={record.isPresent}
+                              onCheckedChange={() => handleToggleAttendance(record.workerId)}
+                              disabled={!isEditing}
+                              className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                            />
+                          </div>
                         </div>
-                        {record.existingRecordId && (
-                          <Badge variant="outline" className="text-xs">Recorded</Badge>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <span className={cn(
-                          "text-sm",
-                          record.isPresent ? "text-green-600" : "text-red-600"
-                        )}>
-                          {record.isPresent ? 'Present' : 'Absent'}
-                        </span>
-                        <Checkbox
-                          checked={record.isPresent}
-                          onCheckedChange={() => handleToggleAttendance(record.workerId)}
-                          disabled={!isEditing}
-                          className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
-                        />
-                      </div>
-                    </div>
-                  ))}
+                      ))}
+                  </div>
+                </ScrollArea>
               </div>
             )}
           </CardContent>
