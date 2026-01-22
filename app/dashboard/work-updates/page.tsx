@@ -257,7 +257,7 @@ export default function WorkUpdatesPage() {
                       {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
                     </TableCell>
                     <TableCell className="py-2 text-sm">
-                      {new Date(update.date).toLocaleDateString()}
+                      {formatDate(update.date)}
                     </TableCell>
                     <TableCell className="py-2 font-medium text-sm">{update.site.name}</TableCell>
                     <TableCell className="py-2 text-sm text-muted-foreground max-w-xs truncate">

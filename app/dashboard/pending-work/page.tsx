@@ -280,7 +280,7 @@ export default function PendingWorkPage() {
                   <TableCell>{work.assignedTo || '-'}</TableCell>
                   <TableCell>
                     {work.expectedCompletionDate
-                      ? new Date(work.expectedCompletionDate).toLocaleDateString()
+                      ? formatDate(work.expectedCompletionDate)
                       : '-'}
                   </TableCell>
                   <TableCell>{getStatusBadge(work.status)}</TableCell>

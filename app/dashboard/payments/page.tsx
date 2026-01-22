@@ -213,12 +213,9 @@ export default function PaymentsPage() {
               {filteredPayments.map((payment, index) => (
                 <TableRow key={payment.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
-                  <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(payment.paymentDate)}</TableCell>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      {payment.clientName}
-                    </div>
+                    {payment.clientName}
                   </TableCell>
                   <TableCell>{payment.projectName || '-'}</TableCell>
                   <TableCell>{getPaymentTypeBadge(payment.paymentType)}</TableCell>

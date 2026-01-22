@@ -214,7 +214,7 @@ export default function ExpensesPage() {
               {filteredExpenses.map((expense, index) => (
                 <TableRow key={expense.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
-                  <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(expense.date)}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{getCategoryLabel(expense.category)}</Badge>
                   </TableCell>

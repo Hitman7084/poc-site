@@ -274,7 +274,7 @@ export default function MaterialsPage() {
                   <TableCell className="text-muted-foreground">
                     {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
                   </TableCell>
-                  <TableCell>{new Date(material.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(material.date)}</TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-muted-foreground" />

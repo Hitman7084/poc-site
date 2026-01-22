@@ -237,7 +237,7 @@ export default function OvertimePage() {
               {filteredOvertime.map((record, index) => (
                 <TableRow key={record.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
-                  <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(record.date)}</TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
