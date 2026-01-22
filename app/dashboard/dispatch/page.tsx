@@ -388,7 +388,7 @@ export default function DispatchPage() {
                   <Select value={formData.fromSiteId} onValueChange={(value) => setFormData({ ...formData, fromSiteId: value })} required>
                     <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                     <SelectContent>
-                      {sites?.filter(s => s.id !== formData.toSiteId).map((site) => (
+                      {activeSites?.filter(s => s.id !== formData.toSiteId).map((site) => (
                         <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -400,7 +400,7 @@ export default function DispatchPage() {
                   <Select value={formData.toSiteId} onValueChange={(value) => setFormData({ ...formData, toSiteId: value })} required>
                     <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                     <SelectContent>
-                      {sites?.filter(s => s.id !== formData.fromSiteId).map((site) => (
+                      {activeSites?.filter(s => s.id !== formData.fromSiteId).map((site) => (
                         <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
                       ))}
                     </SelectContent>
