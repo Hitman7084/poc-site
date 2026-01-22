@@ -60,6 +60,12 @@ export function ExportToExcel({
     } else {
       setInternalFromDate(date);
     }
+    // Reset toDate when fromDate changes
+    if (onToDateChange) {
+      onToDateChange(undefined);
+    } else {
+      setInternalToDate(undefined);
+    }
   };
 
   const setToDate = (date: Date | undefined) => {

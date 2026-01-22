@@ -58,11 +58,14 @@ export default function DispatchPage() {
   const updateMutation = useUpdateDispatch();
   const deleteMutation = useDeleteDispatch();
 
-  // Get active sites for dropdown
+  // Get active sites for form dropdown (only active sites can be selected in new dispatches)
   const activeSites = useMemo(() => {
     if (!sites) return [];
     return sites.filter((site) => site.isActive);
   }, [sites]);
+
+  // For filters, show all sites (including inactive) so users can filter by old dispatches
+  const allSitesForFilter = sites || [];
 
   // Filter dispatches by date range, from site, and to site
   const filteredDispatches = useMemo(() => {
@@ -70,8 +73,18 @@ export default function DispatchPage() {
     
     let filtered = dispatches;
     
-    // Apply date range filter
-    filtered = filterByDateRange(filtered, (d) => d.dispatchDate, fromDate, toDate);
+    // Apply date range filter - check both dispatch date and received date
+    if (fromDate || toDate) {
+      filtered = filtered.filter(d => {
+        const dispatchDate = new Date(d.dispatchDate);
+        const receivedDate = d.receivedDate ? new Date(d.receivedDate) : null;
+        
+        const matchesDispatchDate = filterByDateRange([d], (item) => item.dispatchDate, fromDate, toDate).length > 0;
+        const matchesReceivedDate = receivedDate && filterByDateRange([d], (item) => item.receivedDate, fromDate, toDate).length > 0;
+        
+        return matchesDispatchDate || matchesReceivedDate;
+      });
+    }
     
     // Apply from site filter
     if (fromSiteId !== 'all') {
@@ -217,7 +230,7 @@ export default function DispatchPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">From: All Sites</SelectItem>
-              {activeSites.map((site) => (
+              {allSitesForFilter.map((site) => (
                 <SelectItem key={site.id} value={site.id}>From: {site.name}</SelectItem>
               ))}
             </SelectContent>
@@ -231,7 +244,7 @@ export default function DispatchPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">To: All Sites</SelectItem>
-              {activeSites.map((site) => (
+              {allSitesForFilter.map((site) => (
                 <SelectItem key={site.id} value={site.id}>To: {site.name}</SelectItem>
               ))}
             </SelectContent>
@@ -370,7 +383,7 @@ export default function DispatchPage() {
                   <Select value={formData.fromSiteId} onValueChange={(value) => setFormData({ ...formData, fromSiteId: value })} required>
                     <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                     <SelectContent>
-                      {sites?.filter(s => s.id !== formData.toSiteId).map((site) => (
+                      {activeSites?.filter(s => s.id !== formData.toSiteId).map((site) => (
                         <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -382,7 +395,7 @@ export default function DispatchPage() {
                   <Select value={formData.toSiteId} onValueChange={(value) => setFormData({ ...formData, toSiteId: value })} required>
                     <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                     <SelectContent>
-                      {sites?.filter(s => s.id !== formData.fromSiteId).map((site) => (
+                      {activeSites?.filter(s => s.id !== formData.fromSiteId).map((site) => (
                         <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -410,12 +423,27 @@ export default function DispatchPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="dispatchDate">Dispatch Date *</Label>
-                  <Input id="dispatchDate" type="date" value={formData.dispatchDate} onChange={(e) => setFormData({ ...formData, dispatchDate: e.target.value })} required />
+                  <Input 
+                    id="dispatchDate" 
+                    type="date" 
+                    value={formData.dispatchDate} 
+                    onChange={(e) => {
+                      setFormData({ ...formData, dispatchDate: e.target.value, receivedDate: '' });
+                    }} 
+                    required 
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="receivedDate">Received Date</Label>
-                  <Input id="receivedDate" type="date" value={formData.receivedDate} onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })} />
+                  <Input 
+                    id="receivedDate" 
+                    type="date" 
+                    value={formData.receivedDate} 
+                    onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })} 
+                    disabled={!formData.dispatchDate}
+                    min={formData.dispatchDate || undefined}
+                  />
                 </div>
               </div>
 

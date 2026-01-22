@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       const records = await prisma.pendingWork.findMany({
         where,
         include: { site: { select: { id: true, name: true } } },
-        orderBy: { expectedCompletionDate: 'asc' },
+        orderBy: { createdAt: 'desc' },
       })
       return apiPaginated(records, {
         total: records.length,
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       prisma.pendingWork.findMany({
         where,
         include: { site: { select: { id: true, name: true } } },
-        orderBy: { expectedCompletionDate: 'asc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),

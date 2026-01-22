@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const [sites, total] = await Promise.all([
       prisma.site.findMany({
         where,
-        orderBy: { name: 'asc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),

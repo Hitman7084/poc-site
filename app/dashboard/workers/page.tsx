@@ -261,16 +261,22 @@ export default function WorkersPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button 
-            onClick={handleExport} 
-            variant="outline" 
-            size="sm" 
-            className="h-8"
-            disabled={isExporting || !filteredWorkers || filteredWorkers.length === 0}
-          >
-            <Download className="mr-1.5 h-3.5 w-3.5" />
-            {isExporting ? 'Exporting...' : 'Export'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1.5 rounded-md border border-amber-200 dark:border-amber-800">
+              <Download className="h-3.5 w-3.5 shrink-0" />
+              <span>Export data monthly for backup</span>
+            </div>
+            <Button 
+              onClick={handleExport} 
+              variant="outline" 
+              size="sm" 
+              className="h-8"
+              disabled={isExporting || !filteredWorkers || filteredWorkers.length === 0}
+            >
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              {isExporting ? 'Exporting...' : 'Export'}
+            </Button>
+          </div>
           <Button onClick={() => handleOpenDialog()} size="sm" className="h-8">
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Add Worker

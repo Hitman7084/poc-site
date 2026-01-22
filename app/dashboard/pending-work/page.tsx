@@ -50,6 +50,7 @@ export default function PendingWorkPage() {
   const pendingWork = pendingWorkData?.data ?? [];
   const pagination = pendingWorkData?.pagination;
   const { data: sites } = useAllSites();
+  const activeSites = sites?.filter(s => s.isActive) || [];
   const createMutation = useCreatePendingWork();
   const updateMutation = useUpdatePendingWork();
   const deleteMutation = useDeletePendingWork();
@@ -322,7 +323,7 @@ export default function PendingWorkPage() {
                 <Select value={formData.siteId} onValueChange={(value) => setFormData({ ...formData, siteId: value })} required>
                   <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                   <SelectContent>
-                    {sites?.map((site) => (
+                    {activeSites?.map((site) => (
                       <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -373,12 +374,26 @@ export default function PendingWorkPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="expectedCompletionDate">Expected Completion</Label>
-                  <Input id="expectedCompletionDate" type="date" value={formData.expectedCompletionDate} onChange={(e) => setFormData({ ...formData, expectedCompletionDate: e.target.value })} />
+                  <Input 
+                    id="expectedCompletionDate" 
+                    type="date" 
+                    value={formData.expectedCompletionDate} 
+                    onChange={(e) => {
+                      setFormData({ ...formData, expectedCompletionDate: e.target.value, actualCompletionDate: '' });
+                    }} 
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="actualCompletionDate">Actual Completion</Label>
-                  <Input id="actualCompletionDate" type="date" value={formData.actualCompletionDate} onChange={(e) => setFormData({ ...formData, actualCompletionDate: e.target.value })} />
+                  <Input 
+                    id="actualCompletionDate" 
+                    type="date" 
+                    value={formData.actualCompletionDate} 
+                    onChange={(e) => setFormData({ ...formData, actualCompletionDate: e.target.value })} 
+                    disabled={!formData.expectedCompletionDate}
+                    min={formData.expectedCompletionDate || undefined}
+                  />
                 </div>
               </div>
 

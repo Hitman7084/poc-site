@@ -66,6 +66,7 @@ export default function WorkUpdatesPage() {
   const updates = updatesData?.data ?? [];
   const pagination = updatesData?.pagination;
   const { data: sites } = useAllSites();
+  const activeSites = sites?.filter(s => s.isActive) || [];
   const createMutation = useCreateWorkUpdate();
   const updateMutation = useUpdateWorkUpdate();
   const deleteMutation = useDeleteWorkUpdate();
@@ -195,7 +196,7 @@ export default function WorkUpdatesPage() {
           {/* Site Filter Dropdown */}
           <Select 
             value={selectedSite?.id || 'all'} 
-            onValueChange={(value) => setSelectedSite(value === 'all' ? null : sites?.find(s => s.id === value) || null)}
+            onValueChange={(value) => setSelectedSite(value === 'all' ? null : activeSites?.find(s => s.id === value) || null)}
           >
             <SelectTrigger className="h-9 w-[180px] text-sm">
               <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -203,7 +204,7 @@ export default function WorkUpdatesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Sites</SelectItem>
-              {sites?.map((site) => (
+              {activeSites?.map((site) => (
                 <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
               ))}
             </SelectContent>
@@ -335,7 +336,7 @@ export default function WorkUpdatesPage() {
                 <Select value={formData.siteId} onValueChange={(value) => setFormData({ ...formData, siteId: value })} required>
                   <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                   <SelectContent>
-                    {sites?.map((site) => (
+                    {activeSites?.map((site) => (
                       <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
                     ))}
                   </SelectContent>

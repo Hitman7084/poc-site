@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, 
   Pencil, 
-  Trash2, 
   MapPin, 
   Users, 
   Calendar as CalendarIcon, 
@@ -14,7 +13,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSites, useAllSites, useCreateSite, useUpdateSite, useDeleteSite } from '@/hooks/useSites';
+import { useSites, useAllSites, useCreateSite, useUpdateSite } from '@/hooks/useSites';
 import { useWorkers } from '@/hooks/useWorkers';
 import {
   useAttendanceByDate,
@@ -110,7 +109,6 @@ export default function SitesPage() {
   // Mutations
   const createSiteMutation = useCreateSite();
   const updateSiteMutation = useUpdateSite();
-  const deleteSiteMutation = useDeleteSite();
   const createAttendanceMutation = useBulkCreateAttendance();
   const updateAttendanceMutation = useBulkUpdateAttendance();
 
@@ -282,19 +280,6 @@ export default function SitesPage() {
       handleCloseDialog();
     } catch (err) {
       console.error('Failed to save site:', err);
-    }
-  };
-
-  const handleDeleteSite = async (id: string) => {
-    if (confirm('Are you sure you want to delete this site?')) {
-      try {
-        await deleteSiteMutation.mutateAsync(id);
-        if (selectedSite?.id === id) {
-          setSelectedSite(null);
-        }
-      } catch (err) {
-        console.error('Failed to delete site:', err);
-      }
     }
   };
 
@@ -508,14 +493,6 @@ export default function SitesPage() {
                         onClick={() => handleOpenDialog(site)}
                       >
                         <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleDeleteSite(site.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
@@ -742,7 +719,9 @@ export default function SitesPage() {
                     id="startDate"
                     type="date"
                     value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, startDate: e.target.value, endDate: '' });
+                    }}
                   />
                 </div>
 
@@ -753,6 +732,8 @@ export default function SitesPage() {
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    disabled={!formData.startDate}
+                    min={formData.startDate || undefined}
                   />
                 </div>
               </div>

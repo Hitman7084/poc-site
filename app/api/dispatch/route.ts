@@ -29,10 +29,20 @@ export async function GET(request: NextRequest) {
       ...(isReceived !== null && { isReceived: isReceived === 'true' }),
       ...(date && { dispatchDate: parseDate(date) }),
       ...(fromDate || toDate ? {
-        dispatchDate: {
-          ...(fromDate && { gte: parseDate(fromDate) }),
-          ...(toDate && { lte: parseDate(toDate) }),
-        },
+        OR: [
+          {
+            dispatchDate: {
+              ...(fromDate && { gte: parseDate(fromDate) }),
+              ...(toDate && { lte: parseDate(toDate) }),
+            },
+          },
+          {
+            receivedDate: {
+              ...(fromDate && { gte: parseDate(fromDate) }),
+              ...(toDate && { lte: parseDate(toDate) }),
+            },
+          },
+        ],
       } : {}),
     }
 

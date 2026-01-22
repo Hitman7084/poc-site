@@ -69,6 +69,7 @@ export default function MaterialsPage() {
   const materials = data?.data;
   const pagination = data?.pagination;
   const { data: sites } = useAllSites();
+  const activeSites = sites?.filter(s => s.isActive) || [];
   const createMutation = useCreateMaterial();
   const updateMutation = useUpdateMaterial();
   const deleteMutation = useDeleteMaterial();
@@ -209,7 +210,7 @@ export default function MaterialsPage() {
           {/* Site Filter Dropdown */}
           <Select 
             value={selectedSite?.id || 'all'} 
-            onValueChange={(value) => setSelectedSite(value === 'all' ? null : sites?.find(s => s.id === value) || null)}
+            onValueChange={(value) => setSelectedSite(value === 'all' ? null : activeSites?.find(s => s.id === value) || null)}
           >
             <SelectTrigger className="h-9 w-[180px] text-sm">
               <MapPin className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -217,7 +218,7 @@ export default function MaterialsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Sites</SelectItem>
-              {sites?.map((site) => (
+              {activeSites?.map((site) => (
                 <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
               ))}
             </SelectContent>
@@ -348,7 +349,7 @@ export default function MaterialsPage() {
                     <SelectValue placeholder="Select site" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sites?.map((site) => (
+                    {activeSites?.map((site) => (
                       <SelectItem key={site.id} value={site.id}>
                         {site.name}
                       </SelectItem>
