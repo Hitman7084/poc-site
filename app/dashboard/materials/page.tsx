@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Package, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -73,6 +73,11 @@ export default function MaterialsPage() {
   const createMutation = useCreateMaterial();
   const updateMutation = useUpdateMaterial();
   const deleteMutation = useDeleteMaterial();
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedSite, fromDate, toDate]);
 
   // Filter materials by selected site and date range
   const filteredMaterials = useMemo(() => {
@@ -274,7 +279,7 @@ export default function MaterialsPage() {
                   <TableCell className="text-muted-foreground">
                     {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
                   </TableCell>
-                  <TableCell>{new Date(material.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(material.date)}</TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-muted-foreground" />

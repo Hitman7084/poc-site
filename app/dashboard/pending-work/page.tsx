@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 import {
   usePendingWork,
@@ -32,6 +32,8 @@ import { toast } from 'sonner';
 export default function PendingWorkPage() {
   const [page, setPage] = useState(1);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingWork, setEditingWork] = useState<PendingWorkWithRelations | null>(null);
   const [formData, setFormData] = useState<PendingWorkInput>({
@@ -55,12 +57,36 @@ export default function PendingWorkPage() {
   const updateMutation = useUpdatePendingWork();
   const deleteMutation = useDeletePendingWork();
 
-  // Filter pending work by selected status
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedStatus, fromDate, toDate]);
+
+  // Filter pending work by selected status and date range
   const filteredPendingWork = useMemo(() => {
     if (!pendingWork) return [];
-    if (selectedStatus === 'all') return pendingWork;
-    return pendingWork.filter(pw => pw.status === selectedStatus);
-  }, [pendingWork, selectedStatus]);
+    let filtered = pendingWork;
+    
+    // Filter by status
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter(pw => pw.status === selectedStatus);
+    }
+    
+    // Filter by date range - check both expected and actual completion dates
+    if (fromDate || toDate) {
+      filtered = filtered.filter(pw => {
+        const expectedDate = pw.expectedCompletionDate ? new Date(pw.expectedCompletionDate) : null;
+        const actualDate = pw.actualCompletionDate ? new Date(pw.actualCompletionDate) : null;
+        
+        const isExpectedInRange = expectedDate && filterByDateRange([pw], (item) => item.expectedCompletionDate, fromDate, toDate).length > 0;
+        const isActualInRange = actualDate && filterByDateRange([pw], (item) => item.actualCompletionDate, fromDate, toDate).length > 0;
+        
+        return isExpectedInRange || isActualInRange;
+      });
+    }
+    
+    return filtered;
+  }, [pendingWork, selectedStatus, fromDate, toDate]);
 
   const handleOpenDialog = (work?: PendingWorkWithRelations) => {
     if (work) {
@@ -242,6 +268,10 @@ export default function PendingWorkPage() {
       <ExportToExcel
         showSiteFilter={false}
         onExport={handleExport}
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
       />
 
       {!filteredPendingWork || filteredPendingWork.length === 0 ? (
@@ -273,14 +303,13 @@ export default function PendingWorkPage() {
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell className="font-medium max-w-xs">
                     <div className="line-clamp-2">{work.taskDescription}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{work.reasonForPending}</div>
                   </TableCell>
                   <TableCell>{work.site.name}</TableCell>
                   <TableCell>{getPriorityBadge(work.priority || 'Medium')}</TableCell>
                   <TableCell>{work.assignedTo || '-'}</TableCell>
                   <TableCell>
                     {work.expectedCompletionDate
-                      ? new Date(work.expectedCompletionDate).toLocaleDateString()
+                      ? formatDate(work.expectedCompletionDate)
                       : '-'}
                   </TableCell>
                   <TableCell>{getStatusBadge(work.status)}</TableCell>

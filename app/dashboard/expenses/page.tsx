@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Receipt } from 'lucide-react';
 import {
   useExpenses,
@@ -31,6 +31,8 @@ import { toast } from 'sonner';
 export default function ExpensesPage() {
   const [page, setPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [formData, setFormData] = useState<ExpenseInput>({
@@ -49,12 +51,21 @@ export default function ExpensesPage() {
   const updateMutation = useUpdateExpense();
   const deleteMutation = useDeleteExpense();
 
-  // Filter expenses by selected category
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCategory, fromDate, toDate]);
+
+  // Filter expenses by selected category and date range
   const filteredExpenses = useMemo(() => {
     if (!expenses) return [];
-    if (selectedCategory === 'all') return expenses;
-    return expenses.filter(e => e.category === selectedCategory);
-  }, [expenses, selectedCategory]);
+    let filtered = expenses;
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(e => e.category === selectedCategory);
+    }
+    filtered = filterByDateRange(filtered, (e) => e.date, fromDate, toDate);
+    return filtered;
+  }, [expenses, selectedCategory, fromDate, toDate]);
 
   const handleOpenDialog = (expense?: Expense) => {
     if (expense) {
@@ -186,6 +197,10 @@ export default function ExpensesPage() {
       <ExportToExcel
         showSiteFilter={false}
         onExport={handleExport}
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
       />
 
       {!filteredExpenses || filteredExpenses.length === 0 ? (
@@ -214,7 +229,7 @@ export default function ExpensesPage() {
               {filteredExpenses.map((expense, index) => (
                 <TableRow key={expense.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
-                  <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(expense.date)}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{getCategoryLabel(expense.category)}</Badge>
                   </TableCell>

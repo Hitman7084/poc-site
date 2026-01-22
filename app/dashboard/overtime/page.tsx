@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Clock, MapPin } from 'lucide-react';
 import {
   useOvertime,
@@ -55,6 +55,11 @@ export default function OvertimePage() {
   const deleteMutation = useDeleteOvertime();
 
   const totalAmount = formData.extraHours * formData.rate;
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedSite, fromDate, toDate]);
 
   // Filter overtime by selected site and date range
   const filteredOvertime = useMemo(() => {
@@ -237,7 +242,7 @@ export default function OvertimePage() {
               {filteredOvertime.map((record, index) => (
                 <TableRow key={record.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
-                  <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(record.date)}</TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />

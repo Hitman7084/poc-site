@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Truck, CheckCircle, XCircle, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -66,6 +66,11 @@ export default function DispatchPage() {
 
   // For filters, show all sites (including inactive) so users can filter by old dispatches
   const allSitesForFilter = sites || [];
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate, fromSiteId, toSiteId]);
 
   // Filter dispatches by date range, from site, and to site
   const filteredDispatches = useMemo(() => {
@@ -383,7 +388,7 @@ export default function DispatchPage() {
                   <Select value={formData.fromSiteId} onValueChange={(value) => setFormData({ ...formData, fromSiteId: value })} required>
                     <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                     <SelectContent>
-                      {activeSites?.filter(s => s.id !== formData.toSiteId).map((site) => (
+                      {sites?.filter(s => s.id !== formData.toSiteId).map((site) => (
                         <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -395,7 +400,7 @@ export default function DispatchPage() {
                   <Select value={formData.toSiteId} onValueChange={(value) => setFormData({ ...formData, toSiteId: value })} required>
                     <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                     <SelectContent>
-                      {activeSites?.filter(s => s.id !== formData.fromSiteId).map((site) => (
+                      {sites?.filter(s => s.id !== formData.fromSiteId).map((site) => (
                         <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
                       ))}
                     </SelectContent>

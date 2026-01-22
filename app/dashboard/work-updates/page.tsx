@@ -71,6 +71,11 @@ export default function WorkUpdatesPage() {
   const updateMutation = useUpdateWorkUpdate();
   const deleteMutation = useDeleteWorkUpdate();
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedSite, fromDate, toDate]);
+
   // Filter work updates by selected site and date range
   const filteredUpdates = useMemo(() => {
     if (!updates) return [];
@@ -257,7 +262,7 @@ export default function WorkUpdatesPage() {
                       {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
                     </TableCell>
                     <TableCell className="py-2 text-sm">
-                      {new Date(update.date).toLocaleDateString()}
+                      {formatDate(update.date)}
                     </TableCell>
                     <TableCell className="py-2 font-medium text-sm">{update.site.name}</TableCell>
                     <TableCell className="py-2 text-sm text-muted-foreground max-w-xs truncate">

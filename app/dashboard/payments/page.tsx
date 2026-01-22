@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, DollarSign, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -32,6 +32,7 @@ export default function PaymentsPage() {
   const [page, setPage] = useState(1);
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
+  const [selectedPaymentType, setSelectedPaymentType] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [formData, setFormData] = useState<PaymentInput>({
@@ -51,11 +52,20 @@ export default function PaymentsPage() {
   const updateMutation = useUpdatePayment();
   const deleteMutation = useDeletePayment();
 
-  // Filter payments by date range
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate, selectedPaymentType]);
+
+  // Filter payments by date range and payment type
   const filteredPayments = useMemo(() => {
     if (!payments) return [];
-    return filterByDateRange(payments, (p) => p.paymentDate, fromDate, toDate);
-  }, [payments, fromDate, toDate]);
+    let filtered = filterByDateRange(payments, (p) => p.paymentDate, fromDate, toDate);
+    if (selectedPaymentType !== 'all') {
+      filtered = filtered.filter(p => p.paymentType === selectedPaymentType);
+    }
+    return filtered;
+  }, [payments, fromDate, toDate, selectedPaymentType]);
 
   const handleOpenDialog = (payment?: Payment) => {
     if (payment) {
@@ -170,10 +180,25 @@ export default function PaymentsPage() {
             <p className="text-sm text-muted-foreground">Track client payments and invoices</p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="shadow-sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Payment
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Payment Type Filter */}
+          <Select value={selectedPaymentType} onValueChange={setSelectedPaymentType}>
+            <SelectTrigger className="h-9 w-[160px] text-sm">
+              <DollarSign className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Payments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              <SelectItem value={PaymentType.ADVANCE}>Advance</SelectItem>
+              <SelectItem value={PaymentType.DURING}>During</SelectItem>
+              <SelectItem value={PaymentType.FINAL}>Final</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={() => handleOpenDialog()} className="shadow-sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Payment
+          </Button>
+        </div>
       </div>
 
       {/* Export Section */}
@@ -213,12 +238,9 @@ export default function PaymentsPage() {
               {filteredPayments.map((payment, index) => (
                 <TableRow key={payment.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
-                  <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(payment.paymentDate)}</TableCell>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      {payment.clientName}
-                    </div>
+                    {payment.clientName}
                   </TableCell>
                   <TableCell>{payment.projectName || '-'}</TableCell>
                   <TableCell>{getPaymentTypeBadge(payment.paymentType)}</TableCell>
