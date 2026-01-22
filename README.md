@@ -8,7 +8,7 @@ A production-ready internal management system designed for construction and fire
 |----------|------------|
 | Framework | Next.js 16 (App Router) |
 | Language | TypeScript (strict mode) |
-| Database | PostgreSQL (Neon) + Prisma ORM |
+| Database | PostgreSQL (Supabase) + Prisma ORM |
 | Authentication | NextAuth.js (Credentials) |
 | State Management | TanStack React Query |
 | UI Components | shadcn/ui + Tailwind CSS |
@@ -57,7 +57,8 @@ A production-ready internal management system designed for construction and fire
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_URL` | PostgreSQL connection string (Supabase pooled connection with pgBouncer) |
+| `DIRECT_URL` | PostgreSQL direct connection string (Supabase direct connection for migrations) |
 | `NEXTAUTH_SECRET` | Secret key for JWT signing |
 | `NEXTAUTH_URL` | Application URL |
 
@@ -70,5 +71,5 @@ A production-ready internal management system designed for construction and fire
 
 ## Deployment
 
-Optimized for Vercel deployment with Neon PostgreSQL.
+Optimized for Vercel deployment with Supabase PostgreSQL.
 
