@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Users, Check, MapPin, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkers, useCreateWorker, useUpdateWorker, useDeleteWorker, fetchAllWorkersForExport } from '@/hooks/useWorkers';
@@ -67,6 +67,11 @@ export default function WorkersPage() {
   const createMutation = useCreateWorker();
   const updateMutation = useUpdateWorker();
   const deleteMutation = useDeleteWorker();
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedSiteFilter]);
 
   // Filter workers by selected site
   const filteredWorkers = useMemo(() => {

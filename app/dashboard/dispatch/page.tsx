@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Truck, CheckCircle, XCircle, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -66,6 +66,11 @@ export default function DispatchPage() {
 
   // For filters, show all sites (including inactive) so users can filter by old dispatches
   const allSitesForFilter = sites || [];
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate, fromSiteId, toSiteId]);
 
   // Filter dispatches by date range, from site, and to site
   const filteredDispatches = useMemo(() => {

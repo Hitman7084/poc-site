@@ -71,6 +71,11 @@ export default function WorkUpdatesPage() {
   const updateMutation = useUpdateWorkUpdate();
   const deleteMutation = useDeleteWorkUpdate();
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedSite, fromDate, toDate]);
+
   // Filter work updates by selected site and date range
   const filteredUpdates = useMemo(() => {
     if (!updates) return [];

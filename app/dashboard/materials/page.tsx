@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Package, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -73,6 +73,11 @@ export default function MaterialsPage() {
   const createMutation = useCreateMaterial();
   const updateMutation = useUpdateMaterial();
   const deleteMutation = useDeleteMaterial();
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedSite, fromDate, toDate]);
 
   // Filter materials by selected site and date range
   const filteredMaterials = useMemo(() => {
