@@ -28,7 +28,6 @@ export async function GET(
 
     return apiSuccess(expense)
   } catch (error) {
-    console.error('GET /api/expenses/[id] error:', error)
     return apiError('Failed to fetch expense record', 500)
   }
 }
@@ -68,7 +67,6 @@ export async function PUT(
 
     return apiSuccess(expense)
   } catch (error) {
-    console.error('PUT /api/expenses/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Expense not found', 404)
     }
@@ -95,7 +93,6 @@ export async function DELETE(
 
     return apiSuccess(expense)
   } catch (error) {
-    console.error('DELETE /api/expenses/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Expense not found', 404)
     }

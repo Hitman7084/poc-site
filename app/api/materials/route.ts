@@ -65,7 +65,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     })
   } catch (error) {
-    console.error('GET /api/materials error:', error)
     return apiError('Failed to fetch material records', 500)
   }
 }
@@ -100,7 +99,6 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(record, 201)
   } catch (error) {
-    console.error('POST /api/materials error:', error)
     return apiError('Failed to create material record', 500)
   }
 }

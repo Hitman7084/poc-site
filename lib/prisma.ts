@@ -17,9 +17,20 @@ const createPrismaClient = () => {
     return null as unknown as PrismaClient
   }
   
+  // Add connection pool parameters to DATABASE_URL for serverless optimization
+  const databaseUrl = new URL(process.env.DATABASE_URL)
+  databaseUrl.searchParams.set('connection_limit', '5')
+  databaseUrl.searchParams.set('pool_timeout', '10')
+  
   return new PrismaClient({
     // Only log errors - remove query logging for performance
     log: ['error'],
+    // Connection pool configuration for serverless
+    datasources: {
+      db: {
+        url: databaseUrl.toString(),
+      },
+    },
   })
 }
 

@@ -44,7 +44,6 @@ export async function GET(request: NextRequest) {
 
     return apiSuccess(records)
   } catch (error) {
-    console.error('GET /api/attendance error:', error)
     return apiError('Failed to fetch attendance records', 500)
   }
 }
@@ -101,7 +100,6 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(record, 201)
   } catch (error) {
-    console.error('POST /api/attendance error:', error)
     return apiError('Failed to create attendance record', 500)
   }
 }

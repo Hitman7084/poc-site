@@ -36,7 +36,6 @@ export async function GET(
 
     return apiSuccess(worker)
   } catch (error) {
-    console.error('GET /api/workers/[id] error:', error)
     return apiError('Failed to fetch worker', 500)
   }
 }
@@ -67,7 +66,6 @@ export async function PUT(
 
     return apiSuccess(worker)
   } catch (error) {
-    console.error('PUT /api/workers/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Worker not found', 404)
     }
@@ -108,7 +106,6 @@ export async function DELETE(
 
     return apiSuccess({ deleted: true })
   } catch (error) {
-    console.error('DELETE /api/workers/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Worker not found', 404)
     }

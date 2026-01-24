@@ -41,7 +41,6 @@ export async function GET(
 
     return apiSuccess(site)
   } catch (error) {
-    console.error('GET /api/sites/[id] error:', error)
     return apiError('Failed to fetch site', 500)
   }
 }
@@ -76,7 +75,6 @@ export async function PUT(
 
     return apiSuccess(site)
   } catch (error) {
-    console.error('PUT /api/sites/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Site not found', 404)
     }
@@ -105,7 +103,6 @@ export async function DELETE(
 
     return apiSuccess(site)
   } catch (error) {
-    console.error('DELETE /api/sites/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Site not found', 404)
     }

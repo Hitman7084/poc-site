@@ -31,7 +31,6 @@ export async function GET(
 
     return apiSuccess(material)
   } catch (error) {
-    console.error('GET /api/materials/[id] error:', error)
     return apiError('Failed to fetch material record', 500)
   }
 }
@@ -65,7 +64,6 @@ export async function PUT(
 
     return apiSuccess(material)
   } catch (error) {
-    console.error('PUT /api/materials/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Material not found', 404)
     }
@@ -92,7 +90,6 @@ export async function DELETE(
 
     return apiSuccess(material)
   } catch (error) {
-    console.error('DELETE /api/materials/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Material not found', 404)
     }

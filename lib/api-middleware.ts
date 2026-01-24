@@ -114,23 +114,13 @@ export function withLogging(
     const startTime = Date.now()
     const { method, url } = req
     
-    console.log(`[${new Date().toISOString()}] ${method} ${url} - Request started`)
-    
     try {
       const response = await handler(req)
       const duration = Date.now() - startTime
       
-      console.log(
-        `[${new Date().toISOString()}] ${method} ${url} - ${response.status} (${duration}ms)`
-      )
-      
       return response
     } catch (error) {
       const duration = Date.now() - startTime
-      console.error(
-        `[${new Date().toISOString()}] ${method} ${url} - Error (${duration}ms):`,
-        error
-      )
       throw error
     }
   }
@@ -146,8 +136,6 @@ export function withErrorHandling(
     try {
       return await handler(req)
     } catch (error) {
-      console.error('API Error:', error)
-      
       // Handle known error types
       if (error instanceof Error) {
         return NextResponse.json(

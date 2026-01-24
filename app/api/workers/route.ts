@@ -57,7 +57,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     })
   } catch (error) {
-    console.error('GET /api/workers error:', error)
     return apiError('Failed to fetch workers', 500)
   }
 }
@@ -82,7 +81,6 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(worker, 201)
   } catch (error) {
-    console.error('POST /api/workers error:', error)
     return apiError('Failed to create worker', 500)
   }
 }

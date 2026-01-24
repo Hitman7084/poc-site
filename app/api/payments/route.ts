@@ -64,7 +64,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     })
   } catch (error) {
-    console.error('GET /api/payments error:', error)
     return apiError('Failed to fetch payment records', 500)
   }
 }
@@ -98,7 +97,6 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(record, 201)
   } catch (error) {
-    console.error('POST /api/payments error:', error)
     return apiError('Failed to create payment record', 500)
   }
 }

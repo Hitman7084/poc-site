@@ -32,7 +32,6 @@ export async function GET(
 
     return apiSuccess(record)
   } catch (error) {
-    console.error('GET /api/attendance/[id] error:', error)
     return apiError('Failed to fetch attendance record', 500)
   }
 }
@@ -82,7 +81,6 @@ export async function PUT(
 
     return apiSuccess(record)
   } catch (error) {
-    console.error('PUT /api/attendance/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Attendance record not found', 404)
     }
@@ -109,7 +107,6 @@ export async function DELETE(
 
     return apiSuccess({ message: 'Attendance record deleted successfully' })
   } catch (error) {
-    console.error('DELETE /api/attendance/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Attendance record not found', 404)
     }

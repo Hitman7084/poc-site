@@ -31,7 +31,6 @@ export async function GET(
 
     return apiSuccess(pendingWork)
   } catch (error) {
-    console.error('GET /api/pending-work/[id] error:', error)
     return apiError('Failed to fetch pending work record', 500)
   }
 }
@@ -66,7 +65,6 @@ export async function PUT(
 
     return apiSuccess(pendingWork)
   } catch (error) {
-    console.error('PUT /api/pending-work/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Pending work not found', 404)
     }
@@ -93,7 +91,6 @@ export async function DELETE(
 
     return apiSuccess(pendingWork)
   } catch (error) {
-    console.error('DELETE /api/pending-work/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Pending work not found', 404)
     }

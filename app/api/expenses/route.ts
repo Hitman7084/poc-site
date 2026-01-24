@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     })
   } catch (error) {
-    console.error('GET /api/expenses error:', error)
     return apiError('Failed to fetch expense records', 500)
   }
 }
@@ -104,7 +103,6 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(record, 201)
   } catch (error) {
-    console.error('POST /api/expenses error:', error)
     return apiError('Failed to create expense record', 500)
   }
 }

@@ -19,15 +19,13 @@ export async function GET(request: NextRequest) {
     await prisma.$queryRaw`SELECT 1`
     
     const timestamp = new Date().toISOString()
-    console.log(`[Keep-Alive] Database pinged successfully at ${timestamp}`)
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       success: true, 
       message: 'Database connection active',
       timestamp 
     })
   } catch (error) {
-    console.error('[Keep-Alive] Database ping failed:', error)
     return NextResponse.json({ 
       success: false, 
       error: 'Failed to ping database' 

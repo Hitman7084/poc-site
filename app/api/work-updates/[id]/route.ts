@@ -31,7 +31,6 @@ export async function GET(
 
     return apiSuccess(workUpdate)
   } catch (error) {
-    console.error('GET /api/work-updates/[id] error:', error)
     return apiError('Failed to fetch work update', 500)
   }
 }
@@ -65,7 +64,6 @@ export async function PUT(
 
     return apiSuccess(workUpdate)
   } catch (error) {
-    console.error('PUT /api/work-updates/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Work update not found', 404)
     }
@@ -92,7 +90,6 @@ export async function DELETE(
 
     return apiSuccess(workUpdate)
   } catch (error) {
-    console.error('DELETE /api/work-updates/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Work update not found', 404)
     }

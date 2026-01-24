@@ -32,7 +32,6 @@ export async function GET(
 
     return apiSuccess(dispatch)
   } catch (error) {
-    console.error('GET /api/dispatch/[id] error:', error)
     return apiError('Failed to fetch dispatch record', 500)
   }
 }
@@ -78,7 +77,6 @@ export async function PUT(
 
     return apiSuccess(dispatch)
   } catch (error) {
-    console.error('PUT /api/dispatch/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Dispatch not found', 404)
     }
@@ -105,7 +103,6 @@ export async function DELETE(
 
     return apiSuccess(dispatch)
   } catch (error) {
-    console.error('DELETE /api/dispatch/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Dispatch not found', 404)
     }

@@ -32,7 +32,6 @@ export async function GET(
 
     return apiSuccess(overtime)
   } catch (error) {
-    console.error('GET /api/overtime/[id] error:', error)
     return apiError('Failed to fetch overtime record', 500)
   }
 }
@@ -89,7 +88,6 @@ export async function PUT(
 
     return apiSuccess(overtime)
   } catch (error) {
-    console.error('PUT /api/overtime/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Overtime not found', 404)
     }
@@ -116,7 +114,6 @@ export async function DELETE(
 
     return apiSuccess(overtime)
   } catch (error) {
-    console.error('DELETE /api/overtime/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Overtime not found', 404)
     }

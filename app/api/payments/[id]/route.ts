@@ -28,7 +28,6 @@ export async function GET(
 
     return apiSuccess(payment)
   } catch (error) {
-    console.error('GET /api/payments/[id] error:', error)
     return apiError('Failed to fetch payment record', 500)
   }
 }
@@ -68,7 +67,6 @@ export async function PUT(
 
     return apiSuccess(payment)
   } catch (error) {
-    console.error('PUT /api/payments/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Payment not found', 404)
     }
@@ -95,7 +93,6 @@ export async function DELETE(
 
     return apiSuccess(payment)
   } catch (error) {
-    console.error('DELETE /api/payments/[id] error:', error)
     if (isNotFoundError(error)) {
       return apiError('Payment not found', 404)
     }

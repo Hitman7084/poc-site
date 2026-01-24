@@ -32,7 +32,6 @@ export async function proxy(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     })
   } catch (error) {
-    console.error('Error getting token:', error)
     // Continue without token - will be treated as unauthenticated
   }
 

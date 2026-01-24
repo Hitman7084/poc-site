@@ -66,7 +66,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     })
   } catch (error) {
-    console.error('GET /api/pending-work error:', error)
     return apiError('Failed to fetch pending work records', 500)
   }
 }
@@ -97,7 +96,6 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(record, 201)
   } catch (error) {
-    console.error('POST /api/pending-work error:', error)
     return apiError('Failed to create pending work record', 500)
   }
 }

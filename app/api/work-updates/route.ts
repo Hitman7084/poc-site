@@ -65,7 +65,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     })
   } catch (error) {
-    console.error('GET /api/work-updates error:', error)
     return apiError('Failed to fetch work updates', 500)
   }
 }
@@ -96,7 +95,6 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(record, 201)
   } catch (error) {
-    console.error('POST /api/work-updates error:', error)
     return apiError('Failed to create work update', 500)
   }
 }

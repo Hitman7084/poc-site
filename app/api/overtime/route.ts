@@ -73,7 +73,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     })
   } catch (error) {
-    console.error('GET /api/overtime error:', error)
     return apiError('Failed to fetch overtime records', 500)
   }
 }
@@ -115,7 +114,6 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(record, 201)
   } catch (error) {
-    console.error('POST /api/overtime error:', error)
     return apiError('Failed to create overtime record', 500)
   }
 }
