@@ -46,7 +46,6 @@ export default function ExpensesPage() {
   });
 
   const filterParams = {
-    siteId: selectedSite?.id,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     fromDate: formatDateForAPI(fromDate),
     toDate: formatDateForAPI(toDate),
@@ -132,9 +131,9 @@ export default function ExpensesPage() {
     try {
       // Fetch all expenses with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllExpensesForExport({
-        category: selectedCategory,
-        fromDate: fromDate?.toISOString().split('T')[0],
-        toDate: toDate?.toISOString().split('T')[0],
+        category: selectedCategory !== 'all' ? selectedCategory : undefined,
+        fromDate: formatDateForAPI(fromDate),
+        toDate: formatDateForAPI(toDate),
       });
 
       await exportToExcel(dataToExport, {

@@ -48,8 +48,8 @@ export default function PaymentsPage() {
 
   // Build filter params for API
   const filterParams = useMemo(() => ({
-    fromDate: fromDate?.toISOString().split('T')[0],
-    toDate: toDate?.toISOString().split('T')[0],
+    fromDate: formatDateForAPI(fromDate),
+    toDate: formatDateForAPI(toDate),
     paymentType: selectedPaymentType,
   }), [fromDate, toDate, selectedPaymentType]);
 
@@ -133,13 +133,13 @@ export default function PaymentsPage() {
     return <Badge variant={variants[type]}>{type}</Badge>;
   };
 
-  // Handle export - fetches all data from API with filters from ExportToExcel component
+  // Handle export - fetches all data from API with filters matching display
   const handleExport = async (filters: ExportFilters) => {
     try {
-      // Fetch all payments with filters from API
+      // Fetch all payments with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllPaymentsForExport({
-        fromDate: filters.fromDate?.toISOString().split('T')[0],
-        toDate: filters.toDate?.toISOString().split('T')[0],
+        fromDate: formatDateForAPI(fromDate),
+        toDate: formatDateForAPI(toDate),
         paymentType: selectedPaymentType,
       });
 

@@ -50,7 +50,6 @@ export default function PendingWorkPage() {
   });
 
   const filterParams = {
-    siteId: selectedSite?.id,
     status: selectedStatus !== 'all' ? selectedStatus : undefined,
     fromDate: formatDateForAPI(fromDate),
     toDate: formatDateForAPI(toDate),
@@ -167,7 +166,6 @@ export default function PendingWorkPage() {
     try {
       // Fetch all pending work with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllPendingWorkForExport({
-        siteId: selectedSite?.id,
         status: selectedStatus !== 'all' ? selectedStatus : undefined,
         fromDate: formatDateForAPI(fromDate),
         toDate: formatDateForAPI(toDate),

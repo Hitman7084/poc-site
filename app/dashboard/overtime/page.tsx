@@ -132,8 +132,8 @@ export default function OvertimePage() {
       // Fetch all overtime with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllOvertimeForExport({
         siteId: selectedSite?.id,
-        fromDate: fromDate?.toISOString().split('T')[0],
-        toDate: toDate?.toISOString().split('T')[0],
+        fromDate: formatDateForAPI(fromDate),
+        toDate: formatDateForAPI(toDate),
       });
 
       await exportToExcel(dataToExport, {
