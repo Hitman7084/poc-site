@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { OvertimeWithRelations, OvertimeInput, PaginatedResponse } from '@/lib/types';
 import type { PaginationInfo } from '@/components/Pagination';
+import { dateStringToISO } from '@/lib/api-utils';
 
 const QUERY_KEY = 'overtime';
 
@@ -9,8 +10,21 @@ export type PaginatedOvertime = {
   pagination: PaginationInfo;
 };
 
-async function fetchOvertime(page: number = 1, limit: number = 10): Promise<PaginatedOvertime> {
-  const response = await fetch(`/api/overtime?page=${page}&limit=${limit}`);
+export type OvertimeFilterParams = {
+  siteId?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+async function fetchOvertime(page: number = 1, limit: number = 10, filters: OvertimeFilterParams = {}): Promise<PaginatedOvertime> {
+  const params = new URLSearchParams();
+  params.set('page', page.toString());
+  params.set('limit', limit.toString());
+  if (filters.siteId) params.set('siteId', filters.siteId);
+  if (filters.fromDate) params.set('fromDate', filters.fromDate);
+  if (filters.toDate) params.set('toDate', filters.toDate);
+  
+  const response = await fetch(`/api/overtime?${params.toString()}`);
   const result: PaginatedResponse<OvertimeWithRelations> = await response.json();
   if (!result.success || !result.data) {
     throw new Error('Failed to fetch overtime');
@@ -24,7 +38,7 @@ async function fetchOvertime(page: number = 1, limit: number = 10): Promise<Pagi
 async function createOvertime(data: OvertimeInput): Promise<OvertimeWithRelations> {
   const payload = {
     ...data,
-    date: new Date(data.date).toISOString(),
+    date: dateStringToISO(data.date),
   };
   const response = await fetch('/api/overtime', {
     method: 'POST',
@@ -41,7 +55,7 @@ async function createOvertime(data: OvertimeInput): Promise<OvertimeWithRelation
 async function updateOvertime(id: string, data: OvertimeInput): Promise<OvertimeWithRelations> {
   const payload = {
     ...data,
-    date: new Date(data.date).toISOString(),
+    date: dateStringToISO(data.date),
   };
   const response = await fetch(`/api/overtime/${id}`, {
     method: 'PUT',
@@ -65,10 +79,10 @@ async function deleteOvertime(id: string): Promise<void> {
   }
 }
 
-export function useOvertime(page: number = 1, limit: number = 10) {
+export function useOvertime(page: number = 1, limit: number = 10, filters: OvertimeFilterParams = {}) {
   return useQuery({
-    queryKey: [QUERY_KEY, page, limit],
-    queryFn: () => fetchOvertime(page, limit),
+    queryKey: [QUERY_KEY, page, limit, filters],
+    queryFn: () => fetchOvertime(page, limit, filters),
   });
 }
 

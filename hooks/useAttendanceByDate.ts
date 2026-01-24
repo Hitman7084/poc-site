@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AttendanceWithRelations, AttendanceInput, ApiResponse } from '@/lib/types';
+import { dateStringToISO } from '@/lib/api-utils';
 
 const QUERY_KEY = 'attendance';
 
@@ -18,9 +19,9 @@ async function bulkCreateAttendance(data: AttendanceInput[]): Promise<Attendance
   for (const record of data) {
     const payload = {
       ...record,
-      date: new Date(record.date).toISOString(),
-      checkIn: record.checkIn ? new Date(record.checkIn).toISOString() : undefined,
-      checkOut: record.checkOut ? new Date(record.checkOut).toISOString() : undefined,
+      date: dateStringToISO(record.date),
+      checkIn: record.checkIn ? dateStringToISO(record.checkIn) : undefined,
+      checkOut: record.checkOut ? dateStringToISO(record.checkOut) : undefined,
     };
     
     const response = await fetch('/api/attendance', {
@@ -44,9 +45,9 @@ async function bulkUpdateAttendance(data: { id: string; data: AttendanceInput }[
   for (const { id, data: record } of data) {
     const payload = {
       ...record,
-      date: new Date(record.date).toISOString(),
-      checkIn: record.checkIn ? new Date(record.checkIn).toISOString() : undefined,
-      checkOut: record.checkOut ? new Date(record.checkOut).toISOString() : undefined,
+      date: dateStringToISO(record.date),
+      checkIn: record.checkIn ? dateStringToISO(record.checkIn) : undefined,
+      checkOut: record.checkOut ? dateStringToISO(record.checkOut) : undefined,
     };
     
     const response = await fetch(`/api/attendance/${id}`, {

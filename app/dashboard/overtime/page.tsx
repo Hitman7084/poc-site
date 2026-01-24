@@ -25,6 +25,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate, formatCurrency } from '@/lib/export-utils';
+import { formatDateForAPI } from '@/lib/api-utils';
 import { Pagination } from '@/components/Pagination';
 import { toast } from 'sonner';
 
@@ -44,7 +45,13 @@ export default function OvertimePage() {
     notes: '',
   });
 
-  const { data: overtimeData, isLoading, error, refetch } = useOvertime(page);
+  const filterParams = {
+    siteId: selectedSite?.id,
+    fromDate: formatDateForAPI(fromDate),
+    toDate: formatDateForAPI(toDate),
+  };
+
+  const { data: overtimeData, isLoading, error, refetch } = useOvertime(page, 10, filterParams);
   const overtime = overtimeData?.data ?? [];
   const pagination = overtimeData?.pagination;
   const { data: workers } = useAllWorkers();
@@ -61,21 +68,8 @@ export default function OvertimePage() {
     setPage(1);
   }, [selectedSite, fromDate, toDate]);
 
-  // Filter overtime by selected site and date range
-  const filteredOvertime = useMemo(() => {
-    if (!overtime) return [];
-    let filtered = overtime;
-    
-    // Filter by site
-    if (selectedSite) {
-      filtered = filtered.filter(o => o.siteId === selectedSite.id);
-    }
-    
-    // Filter by date range
-    filtered = filterByDateRange(filtered, (o) => o.date, fromDate, toDate);
-    
-    return filtered;
-  }, [overtime, selectedSite, fromDate, toDate]);
+  // No client-side filtering needed - all filtering is done server-side
+  const filteredOvertime = overtime || [];
 
   const handleOpenDialog = (record?: OvertimeWithRelations) => {
     if (record) {
@@ -132,17 +126,14 @@ export default function OvertimePage() {
     }
   };
 
-  // Handle export - fetches all data from API with filters from ExportToExcel component
+  // Handle export - fetches all data from API with filters matching display
   const handleExport = async (filters: ExportFilters) => {
     try {
-      // Build siteId from selectedSiteIds - use first selected site or undefined
-      const siteId = filters.selectedSiteIds.length > 0 ? filters.selectedSiteIds[0] : undefined;
-      
-      // Fetch all overtime with filters from API
+      // Fetch all overtime with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllOvertimeForExport({
-        siteId,
-        fromDate: filters.fromDate?.toISOString().split('T')[0],
-        toDate: filters.toDate?.toISOString().split('T')[0],
+        siteId: selectedSite?.id,
+        fromDate: fromDate?.toISOString().split('T')[0],
+        toDate: toDate?.toISOString().split('T')[0],
       });
 
       await exportToExcel(dataToExport, {

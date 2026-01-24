@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate, parseEndOfDayDate } from '@/lib/api-utils'
 import { createMaterialSchema } from '@/lib/validations/materials'
 
 // GET /api/materials - Fetch material records with pagination
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       ...(fromDate || toDate ? {
         date: {
           ...(fromDate && { gte: parseDate(fromDate) }),
-          ...(toDate && { lte: parseDate(toDate) }),
+          ...(toDate && { lte: parseEndOfDayDate(toDate) }),
         },
       } : {}),
     }

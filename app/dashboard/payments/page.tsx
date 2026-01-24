@@ -24,8 +24,9 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
-import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
+import { ExportToExcel, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate, formatCurrency } from '@/lib/export-utils';
+import { formatDateForAPI } from '@/lib/api-utils';
 import { Pagination } from '@/components/Pagination';
 
 export default function PaymentsPage() {
@@ -45,7 +46,14 @@ export default function PaymentsPage() {
     notes: '',
   });
 
-  const { data: paymentsData, isLoading, error, refetch } = usePayments(page);
+  // Build filter params for API
+  const filterParams = useMemo(() => ({
+    fromDate: fromDate?.toISOString().split('T')[0],
+    toDate: toDate?.toISOString().split('T')[0],
+    paymentType: selectedPaymentType,
+  }), [fromDate, toDate, selectedPaymentType]);
+
+  const { data: paymentsData, isLoading, error, refetch } = usePayments(page, 10, filterParams);
   const payments = paymentsData?.data ?? [];
   const pagination = paymentsData?.pagination;
   const createMutation = useCreatePayment();
@@ -56,16 +64,6 @@ export default function PaymentsPage() {
   useEffect(() => {
     setPage(1);
   }, [fromDate, toDate, selectedPaymentType]);
-
-  // Filter payments by date range and payment type
-  const filteredPayments = useMemo(() => {
-    if (!payments) return [];
-    let filtered = filterByDateRange(payments, (p) => p.paymentDate, fromDate, toDate);
-    if (selectedPaymentType !== 'all') {
-      filtered = filtered.filter(p => p.paymentType === selectedPaymentType);
-    }
-    return filtered;
-  }, [payments, fromDate, toDate, selectedPaymentType]);
 
   const handleOpenDialog = (payment?: Payment) => {
     if (payment) {
@@ -142,6 +140,7 @@ export default function PaymentsPage() {
       const dataToExport = await fetchAllPaymentsForExport({
         fromDate: filters.fromDate?.toISOString().split('T')[0],
         toDate: filters.toDate?.toISOString().split('T')[0],
+        paymentType: selectedPaymentType,
       });
 
       await exportToExcel(dataToExport, {
@@ -211,11 +210,11 @@ export default function PaymentsPage() {
         onToDateChange={setToDate}
       />
 
-      {!filteredPayments || filteredPayments.length === 0 ? (
+      {!payments || payments.length === 0 ? (
         <Card className="p-12">
           <EmptyState
             title="No payment records found"
-            description={fromDate || toDate ? "No payments found for the selected date range" : "Start tracking client payments"}
+            description={fromDate || toDate || selectedPaymentType !== 'all' ? "No payments found for the selected filters" : "Start tracking client payments"}
             action={<Button onClick={() => handleOpenDialog()}><Plus className="mr-2 h-4 w-4" />Add Payment</Button>}
           />
         </Card>
@@ -235,7 +234,7 @@ export default function PaymentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPayments.map((payment, index) => (
+              {payments.map((payment, index) => (
                 <TableRow key={payment.id}>
                   <TableCell className="text-muted-foreground">{pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}</TableCell>
                   <TableCell>{formatDate(payment.paymentDate)}</TableCell>

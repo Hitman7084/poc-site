@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Payment, PaymentInput, PaginatedResponse } from '@/lib/types';
-import type { PaginationInfo } from '@/components/Pagination';
-
+import type { PaginationInfo } from '@/components/Pagination';import { dateStringToISO } from '@/lib/api-utils';
 const QUERY_KEY = 'payments';
 
 export type PaginatedPayments = {
@@ -9,8 +8,25 @@ export type PaginatedPayments = {
   pagination: PaginationInfo;
 };
 
-async function fetchPayments(page: number = 1, limit: number = 10): Promise<PaginatedPayments> {
-  const response = await fetch(`/api/payments?page=${page}&limit=${limit}`);
+export type PaymentsFilterParams = {
+  fromDate?: string;
+  toDate?: string;
+  paymentType?: string;
+};
+
+async function fetchPayments(
+  page: number = 1, 
+  limit: number = 10,
+  filters: PaymentsFilterParams = {}
+): Promise<PaginatedPayments> {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('limit', String(limit));
+  if (filters.fromDate) params.set('fromDate', filters.fromDate);
+  if (filters.toDate) params.set('toDate', filters.toDate);
+  if (filters.paymentType && filters.paymentType !== 'all') params.set('paymentType', filters.paymentType);
+  
+  const response = await fetch(`/api/payments?${params.toString()}`);
   const result: PaginatedResponse<Payment> = await response.json();
   if (!result.success || !result.data) {
     throw new Error('Failed to fetch payments');
@@ -24,7 +40,7 @@ async function fetchPayments(page: number = 1, limit: number = 10): Promise<Pagi
 async function createPayment(data: PaymentInput): Promise<Payment> {
   const payload = {
     ...data,
-    paymentDate: new Date(data.paymentDate).toISOString(),
+    paymentDate: dateStringToISO(data.paymentDate),
   };
   const response = await fetch('/api/payments', {
     method: 'POST',
@@ -41,7 +57,7 @@ async function createPayment(data: PaymentInput): Promise<Payment> {
 async function updatePayment(id: string, data: PaymentInput): Promise<Payment> {
   const payload = {
     ...data,
-    paymentDate: new Date(data.paymentDate).toISOString(),
+    paymentDate: dateStringToISO(data.paymentDate),
   };
   const response = await fetch(`/api/payments/${id}`, {
     method: 'PUT',
@@ -65,10 +81,10 @@ async function deletePayment(id: string): Promise<void> {
   }
 }
 
-export function usePayments(page: number = 1, limit: number = 10) {
+export function usePayments(page: number = 1, limit: number = 10, filters: PaymentsFilterParams = {}) {
   return useQuery({
-    queryKey: [QUERY_KEY, page, limit],
-    queryFn: () => fetchPayments(page, limit),
+    queryKey: [QUERY_KEY, page, limit, filters],
+    queryFn: () => fetchPayments(page, limit, filters),
   });
 }
 
@@ -107,6 +123,7 @@ export function useDeletePayment() {
 export type ExportPaymentsParams = {
   fromDate?: string;
   toDate?: string;
+  paymentType?: string;
 };
 
 export async function fetchAllPaymentsForExport(params: ExportPaymentsParams = {}): Promise<Payment[]> {
@@ -114,6 +131,7 @@ export async function fetchAllPaymentsForExport(params: ExportPaymentsParams = {
   searchParams.set('all', 'true');
   if (params.fromDate) searchParams.set('fromDate', params.fromDate);
   if (params.toDate) searchParams.set('toDate', params.toDate);
+  if (params.paymentType && params.paymentType !== 'all') searchParams.set('paymentType', params.paymentType);
   
   const response = await fetch(`/api/payments?${searchParams.toString()}`);
   const result = await response.json();

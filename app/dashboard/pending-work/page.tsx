@@ -26,6 +26,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate } from '@/lib/export-utils';
+import { formatDateForAPI } from '@/lib/api-utils';
 import { Pagination } from '@/components/Pagination';
 import { toast } from 'sonner';
 
@@ -48,7 +49,14 @@ export default function PendingWorkPage() {
     notes: '',
   });
 
-  const { data: pendingWorkData, isLoading, error, refetch } = usePendingWork(page);
+  const filterParams = {
+    siteId: selectedSite?.id,
+    status: selectedStatus !== 'all' ? selectedStatus : undefined,
+    fromDate: formatDateForAPI(fromDate),
+    toDate: formatDateForAPI(toDate),
+  };
+
+  const { data: pendingWorkData, isLoading, error, refetch } = usePendingWork(page, 10, filterParams);
   const pendingWork = pendingWorkData?.data ?? [];
   const pagination = pendingWorkData?.pagination;
   const { data: sites } = useAllSites();
@@ -62,31 +70,8 @@ export default function PendingWorkPage() {
     setPage(1);
   }, [selectedStatus, fromDate, toDate]);
 
-  // Filter pending work by selected status and date range
-  const filteredPendingWork = useMemo(() => {
-    if (!pendingWork) return [];
-    let filtered = pendingWork;
-    
-    // Filter by status
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(pw => pw.status === selectedStatus);
-    }
-    
-    // Filter by date range - check both expected and actual completion dates
-    if (fromDate || toDate) {
-      filtered = filtered.filter(pw => {
-        const expectedDate = pw.expectedCompletionDate ? new Date(pw.expectedCompletionDate) : null;
-        const actualDate = pw.actualCompletionDate ? new Date(pw.actualCompletionDate) : null;
-        
-        const isExpectedInRange = expectedDate && filterByDateRange([pw], (item) => item.expectedCompletionDate, fromDate, toDate).length > 0;
-        const isActualInRange = actualDate && filterByDateRange([pw], (item) => item.actualCompletionDate, fromDate, toDate).length > 0;
-        
-        return isExpectedInRange || isActualInRange;
-      });
-    }
-    
-    return filtered;
-  }, [pendingWork, selectedStatus, fromDate, toDate]);
+  // No client-side filtering needed - all filtering is done server-side
+  const filteredPendingWork = pendingWork || [];
 
   const handleOpenDialog = (work?: PendingWorkWithRelations) => {
     if (work) {
@@ -177,17 +162,15 @@ export default function PendingWorkPage() {
     return <span className={`px-2 py-1 rounded text-xs font-medium ${colors[priority] || colors.Medium}`}>{priority}</span>;
   };
 
-  // Handle export - fetches all data from API with filters from ExportToExcel component
+  // Handle export - fetches all data from API with filters matching display
   const handleExport = async (filters: ExportFilters) => {
     try {
-      // Build siteId from selectedSiteIds - use first selected site or undefined
-      const siteId = filters.selectedSiteIds.length > 0 ? filters.selectedSiteIds[0] : undefined;
-      
-      // Fetch all pending work with filters from API
+      // Fetch all pending work with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllPendingWorkForExport({
-        siteId,
-        fromDate: filters.fromDate?.toISOString().split('T')[0],
-        toDate: filters.toDate?.toISOString().split('T')[0],
+        siteId: selectedSite?.id,
+        status: selectedStatus !== 'all' ? selectedStatus : undefined,
+        fromDate: formatDateForAPI(fromDate),
+        toDate: formatDateForAPI(toDate),
       });
 
       await exportToExcel(dataToExport, {

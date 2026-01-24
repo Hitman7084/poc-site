@@ -25,6 +25,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate, formatCurrency } from '@/lib/export-utils';
+import { formatDateForAPI } from '@/lib/api-utils';
 import { Pagination } from '@/components/Pagination';
 import { toast } from 'sonner';
 
@@ -44,7 +45,14 @@ export default function ExpensesPage() {
     notes: '',
   });
 
-  const { data, isLoading, error, refetch } = useExpenses(page);
+  const filterParams = {
+    siteId: selectedSite?.id,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+    fromDate: formatDateForAPI(fromDate),
+    toDate: formatDateForAPI(toDate),
+  };
+
+  const { data, isLoading, error, refetch } = useExpenses(page, 10, filterParams);
   const expenses = data?.data;
   const pagination = data?.pagination;
   const createMutation = useCreateExpense();
@@ -56,16 +64,8 @@ export default function ExpensesPage() {
     setPage(1);
   }, [selectedCategory, fromDate, toDate]);
 
-  // Filter expenses by selected category and date range
-  const filteredExpenses = useMemo(() => {
-    if (!expenses) return [];
-    let filtered = expenses;
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(e => e.category === selectedCategory);
-    }
-    filtered = filterByDateRange(filtered, (e) => e.date, fromDate, toDate);
-    return filtered;
-  }, [expenses, selectedCategory, fromDate, toDate]);
+  // No client-side filtering needed - all filtering is done server-side
+  const filteredExpenses = expenses || [];
 
   const handleOpenDialog = (expense?: Expense) => {
     if (expense) {
@@ -127,13 +127,14 @@ export default function ExpensesPage() {
     return category.replace('_', ' ');
   };
 
-  // Handle export - fetches all data from API with filters from ExportToExcel component
+  // Handle export - fetches all data from API with filters matching display
   const handleExport = async (filters: ExportFilters) => {
     try {
-      // Fetch all expenses with filters from API
+      // Fetch all expenses with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllExpensesForExport({
-        fromDate: filters.fromDate?.toISOString().split('T')[0],
-        toDate: filters.toDate?.toISOString().split('T')[0],
+        category: selectedCategory,
+        fromDate: fromDate?.toISOString().split('T')[0],
+        toDate: toDate?.toISOString().split('T')[0],
       });
 
       await exportToExcel(dataToExport, {

@@ -34,8 +34,8 @@ async function fetchAllSites(): Promise<Site[]> {
 async function createSite(data: SiteInput): Promise<Site> {
   const payload = {
     ...data,
-    startDate: data.startDate ? new Date(data.startDate).toISOString() : undefined,
-    endDate: data.endDate ? new Date(data.endDate).toISOString() : undefined,
+    startDate: data.startDate ? dateStringToISO(data.startDate) : undefined,
+    endDate: data.endDate ? dateStringToISO(data.endDate) : undefined,
   };
   
   const response = await fetch('/api/sites', {
@@ -53,8 +53,8 @@ async function createSite(data: SiteInput): Promise<Site> {
 async function updateSite(id: string, data: SiteInput): Promise<Site> {
   const payload = {
     ...data,
-    startDate: data.startDate ? new Date(data.startDate).toISOString() : undefined,
-    endDate: data.endDate ? new Date(data.endDate).toISOString() : undefined,
+    startDate: data.startDate ? dateStringToISO(data.startDate) : undefined,
+    endDate: data.endDate ? dateStringToISO(data.endDate) : undefined,
   };
   
   const response = await fetch(`/api/sites/${id}`, {

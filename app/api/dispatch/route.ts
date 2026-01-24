@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, apiPaginated, parsePaginationParams, validateRequest, parseDate, parseEndOfDayDate } from '@/lib/api-utils'
 import { createDispatchSchema } from '@/lib/validations/dispatch'
 
 // GET /api/dispatch - Fetch dispatch records with pagination
@@ -29,20 +29,10 @@ export async function GET(request: NextRequest) {
       ...(isReceived !== null && { isReceived: isReceived === 'true' }),
       ...(date && { dispatchDate: parseDate(date) }),
       ...(fromDate || toDate ? {
-        OR: [
-          {
-            dispatchDate: {
-              ...(fromDate && { gte: parseDate(fromDate) }),
-              ...(toDate && { lte: parseDate(toDate) }),
-            },
-          },
-          {
-            receivedDate: {
-              ...(fromDate && { gte: parseDate(fromDate) }),
-              ...(toDate && { lte: parseDate(toDate) }),
-            },
-          },
-        ],
+        dispatchDate: {
+          ...(fromDate && { gte: parseDate(fromDate) }),
+          ...(toDate && { lte: parseEndOfDayDate(toDate) }),
+        },
       } : {}),
     }
 

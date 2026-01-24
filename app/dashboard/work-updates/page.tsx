@@ -33,6 +33,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate } from '@/lib/export-utils';
+import { formatDateForAPI } from '@/lib/api-utils';
 import { Pagination } from '@/components/Pagination';
 
 export default function WorkUpdatesPage() {
@@ -62,7 +63,13 @@ export default function WorkUpdatesPage() {
     }
   }, [isHydrated, formData.date]);
 
-  const { data: updatesData, isLoading, error, refetch } = useWorkUpdates(page);
+  const filterParams = {
+    siteId: selectedSite?.id,
+    fromDate: formatDateForAPI(fromDate),
+    toDate: formatDateForAPI(toDate),
+  };
+
+  const { data: updatesData, isLoading, error, refetch } = useWorkUpdates(page, 10, filterParams);
   const updates = updatesData?.data ?? [];
   const pagination = updatesData?.pagination;
   const { data: sites } = useAllSites();
@@ -76,21 +83,8 @@ export default function WorkUpdatesPage() {
     setPage(1);
   }, [selectedSite, fromDate, toDate]);
 
-  // Filter work updates by selected site and date range
-  const filteredUpdates = useMemo(() => {
-    if (!updates) return [];
-    let filtered = updates;
-    
-    // Filter by site
-    if (selectedSite) {
-      filtered = filtered.filter(u => u.siteId === selectedSite.id);
-    }
-    
-    // Filter by date range
-    filtered = filterByDateRange(filtered, (u) => u.date, fromDate, toDate);
-    
-    return filtered;
-  }, [updates, selectedSite, fromDate, toDate]);
+  // No client-side filtering needed - all filtering is done server-side
+  const filteredUpdates = updates || [];
 
   const handleOpenDialog = (update?: WorkUpdateWithRelations) => {
     if (update) {
@@ -149,17 +143,14 @@ export default function WorkUpdatesPage() {
     }
   };
 
-  // Handle export - fetches all data from API with filters from ExportToExcel component
+  // Handle export - fetches all data from API with filters matching display
   const handleExport = async (filters: ExportFilters) => {
     try {
-      // Build siteId from selectedSiteIds - use first selected site or undefined
-      const siteId = filters.selectedSiteIds.length > 0 ? filters.selectedSiteIds[0] : undefined;
-      
-      // Fetch all work updates with filters from API
+      // Fetch all work updates with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllWorkUpdatesForExport({
-        siteId,
-        fromDate: filters.fromDate?.toISOString().split('T')[0],
-        toDate: filters.toDate?.toISOString().split('T')[0],
+        siteId: selectedSite?.id,
+        fromDate: formatDateForAPI(fromDate),
+        toDate: formatDateForAPI(toDate),
       });
 
       await exportToExcel(dataToExport, {
@@ -306,7 +297,7 @@ export default function WorkUpdatesPage() {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDialog(update)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(update.id)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(update.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>

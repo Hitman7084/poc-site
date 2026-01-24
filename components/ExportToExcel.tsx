@@ -278,7 +278,9 @@ export function ExportToExcel({
 }
 
 /**
- * Helper function to filter data by date range
+ * Helper function to filter data by date range (inclusive on both ends)
+ * If from=Jan 22, includes all records from Jan 22 00:00:00
+ * If to=Jan 23, includes all records up to Jan 23 23:59:59.999
  */
 export function filterByDateRange<T>(
   data: T[],
@@ -292,21 +294,24 @@ export function filterByDateRange<T>(
     const itemDate = dateAccessor(item);
     if (!itemDate) return false;
 
-    const date = startOfDay(new Date(itemDate));
+    // Normalize item date to start of day for comparison
+    const normalizedDate = startOfDay(new Date(itemDate));
 
     if (fromDate && toDate) {
-      return isWithinInterval(date, {
-        start: startOfDay(fromDate),
-        end: endOfDay(toDate),
-      });
+      // Both dates provided - check if within interval (inclusive)
+      const start = startOfDay(fromDate);
+      const end = endOfDay(toDate);
+      return normalizedDate >= start && normalizedDate <= end;
     }
 
     if (fromDate) {
-      return date >= startOfDay(fromDate);
+      // Only from date - include from start of that day onwards
+      return normalizedDate >= startOfDay(fromDate);
     }
 
     if (toDate) {
-      return date <= endOfDay(toDate);
+      // Only to date - include up to end of that day
+      return normalizedDate <= endOfDay(toDate);
     }
 
     return true;

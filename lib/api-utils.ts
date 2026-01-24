@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 /**
+ * DEAR DEVELOPER DO  NOT TOUCH THE BELOW DATE AND TIME HELLISH CODE I MYSELF DON'T KNOW HOW I HAVE MANAGED THE DATA AND TIME.
+ * IF YOU CHANGE THE CODE THEN DO SO AT YOUR OWN RISK. I WILL NOT BE RESPONSIBLE FOR ANY BUGS OR ISSUES ARISING OUT OF IT.
+ * THIS CODE IS A RESULT OF HOURS OF STRUGGLE TO MAKE DATES WORK PROPERLY WITH POSTGRESQL AND NEXT.JS.
+ * PROCEED WITH CAUTION AND TEST THOROUGHLY IF YOU DECIDE TO MODIFY ANYTHING BELOW.
+ *
  * Standard API Response Type
  */
 export type ApiResponse<T = unknown> = {
@@ -117,8 +122,67 @@ export async function validateRequest<T>(
 }
 
 /**
- * Parse and convert date strings to Date objects
+ * Parse and convert date strings to Date objects at start of day (00:00:00)
+ * Used for "from date" filters to include the entire day
+ * For @db.Date columns, creates a Date that PostgreSQL will interpret correctly
  */
 export function parseDate(dateString: string | Date): Date {
-  return dateString instanceof Date ? dateString : new Date(dateString)
+  if (dateString instanceof Date) {
+    const date = new Date(dateString)
+    date.setUTCHours(0, 0, 0, 0)
+    return date
+  }
+  
+  // Extract just the date part if it's an ISO string with time
+  const datePart = dateString.split('T')[0]
+  
+  // Create Date at midnight UTC for consistent @db.Date comparison
+  return new Date(`${datePart}T00:00:00.000Z`)
+}
+
+/**
+ * Parse date string and set time to end of day (23:59:59.999)
+ * Used for "to date" filters to include all records on that day
+ * For @db.Date columns, creates a Date that PostgreSQL will interpret correctly
+ */
+export function parseEndOfDayDate(dateString: string | Date): Date {
+  if (dateString instanceof Date) {
+    const date = new Date(dateString)
+    date.setUTCHours(23, 59, 59, 999)
+    return date
+  }
+  
+  // Extract just the date part if it's an ISO string with time
+  const datePart = dateString.split('T')[0]
+  
+  // Create Date at end of day UTC for consistent @db.Date comparison
+  return new Date(`${datePart}T23:59:59.999Z`)
+}
+
+/**
+ * Format a Date object to YYYY-MM-DD format in local timezone
+ * Prevents timezone-related date shifting when passing dates to API
+ */
+export function formatDateForAPI(date: Date | undefined): string | undefined {
+  if (!date) return undefined
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Convert YYYY-MM-DD string to ISO string preserving the date in local timezone
+ * Used when sending dates from forms to API
+ * For @db.Date columns, this ensures the date is stored correctly regardless of server timezone
+ */
+export function dateStringToISO(dateString: string): string {
+  if (!dateString) return ''
+  
+  // Extract just the date part if it's already an ISO string
+  const datePart = dateString.split('T')[0]
+  
+  // For date-only fields (@db.Date), append time at start of day in ISO format
+  // This ensures PostgreSQL extracts the correct date regardless of server timezone
+  return `${datePart}T00:00:00.000Z`
 }

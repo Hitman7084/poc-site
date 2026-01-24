@@ -26,6 +26,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate, formatBoolean } from '@/lib/export-utils';
+import { formatDateForAPI } from '@/lib/api-utils';
 import { Pagination } from '@/components/Pagination';
 
 export default function DispatchPage() {
@@ -50,7 +51,14 @@ export default function DispatchPage() {
     notes: '',
   });
 
-  const { data, isLoading, error, refetch } = useDispatches(page);
+  const filterParams = {
+    fromSiteId: fromSiteId !== 'all' ? fromSiteId : undefined,
+    toSiteId: toSiteId !== 'all' ? toSiteId : undefined,
+    fromDate: formatDateForAPI(fromDate),
+    toDate: formatDateForAPI(toDate),
+  };
+
+  const { data, isLoading, error, refetch } = useDispatches(page, 10, filterParams);
   const dispatches = data?.data;
   const pagination = data?.pagination;
   const { data: sites, isLoading: isLoadingSites } = useAllSites();
@@ -72,47 +80,18 @@ export default function DispatchPage() {
     setPage(1);
   }, [fromDate, toDate, fromSiteId, toSiteId]);
 
-  // Filter dispatches by date range, from site, and to site
-  const filteredDispatches = useMemo(() => {
-    if (!dispatches) return [];
-    
-    let filtered = dispatches;
-    
-    // Apply date range filter - check both dispatch date and received date
-    if (fromDate || toDate) {
-      filtered = filtered.filter(d => {
-        const dispatchDate = new Date(d.dispatchDate);
-        const receivedDate = d.receivedDate ? new Date(d.receivedDate) : null;
-        
-        const matchesDispatchDate = filterByDateRange([d], (item) => item.dispatchDate, fromDate, toDate).length > 0;
-        const matchesReceivedDate = receivedDate && filterByDateRange([d], (item) => item.receivedDate, fromDate, toDate).length > 0;
-        
-        return matchesDispatchDate || matchesReceivedDate;
-      });
-    }
-    
-    // Apply from site filter
-    if (fromSiteId !== 'all') {
-      filtered = filtered.filter(d => d.fromSiteId === fromSiteId);
-    }
-    
-    // Apply to site filter
-    if (toSiteId !== 'all') {
-      filtered = filtered.filter(d => d.toSiteId === toSiteId);
-    }
-    
-    return filtered;
-  }, [dispatches, fromDate, toDate, fromSiteId, toSiteId]);
+  // No client-side filtering needed - all filtering is done server-side
+  const filteredDispatches = dispatches || [];
 
-  // Handle export - fetches all data from API with filters from ExportToExcel component
+  // Handle export - fetches all data from API with filters matching display
   const handleExport = async (filters: ExportFilters) => {
     try {
-      // Fetch all dispatches with filters from API
+      // Fetch all dispatches with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllDispatchesForExport({
         fromSiteId: fromSiteId !== 'all' ? fromSiteId : undefined,
         toSiteId: toSiteId !== 'all' ? toSiteId : undefined,
-        fromDate: filters.fromDate?.toISOString().split('T')[0],
-        toDate: filters.toDate?.toISOString().split('T')[0],
+        fromDate: formatDateForAPI(fromDate),
+        toDate: formatDateForAPI(toDate),
       });
 
       await exportToExcel(dataToExport, {
@@ -319,6 +298,7 @@ export default function DispatchPage() {
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="h-9 text-xs w-12">S.No</TableHead>
+                    <TableHead className="h-9 text-xs">Dispatch Date</TableHead>
                     <TableHead className="h-9 text-xs">Material</TableHead>
                     <TableHead className="h-9 text-xs">From</TableHead>
                     <TableHead className="h-9 text-xs">To</TableHead>
@@ -333,6 +313,7 @@ export default function DispatchPage() {
                       <TableCell className="py-2 text-sm text-muted-foreground">
                         {pagination ? (pagination.page - 1) * pagination.limit + index + 1 : index + 1}
                       </TableCell>
+                      <TableCell className="py-2 text-sm text-muted-foreground">{formatDate(dispatch.dispatchDate)}</TableCell>
                       <TableCell className="py-2 font-medium text-sm">{dispatch.materialName}</TableCell>
                       <TableCell className="py-2 text-sm text-muted-foreground">{dispatch.fromSite.name}</TableCell>
                       <TableCell className="py-2 text-sm text-muted-foreground">{dispatch.toSite.name}</TableCell>
@@ -388,8 +369,9 @@ export default function DispatchPage() {
                   <Select value={formData.fromSiteId} onValueChange={(value) => setFormData({ ...formData, fromSiteId: value })} required>
                     <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                     <SelectContent>
-                      {sites?.filter(s => s.id !== formData.toSiteId).map((site) => (
-                        <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+                      {/* For new dispatches, show only active sites. For editing, also include the current site if inactive */}
+                      {(editingDispatch ? sites : activeSites)?.filter(s => s.id !== formData.toSiteId).map((site) => (
+                        <SelectItem key={site.id} value={site.id}>{site.name}{!site.isActive && ' (Inactive)'}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -400,8 +382,9 @@ export default function DispatchPage() {
                   <Select value={formData.toSiteId} onValueChange={(value) => setFormData({ ...formData, toSiteId: value })} required>
                     <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                     <SelectContent>
-                      {sites?.filter(s => s.id !== formData.fromSiteId).map((site) => (
-                        <SelectItem key={site.id} value={site.id}>{site.name}</SelectItem>
+                      {/* For new dispatches, show only active sites. For editing, also include the current site if inactive */}
+                      {(editingDispatch ? sites : activeSites)?.filter(s => s.id !== formData.fromSiteId).map((site) => (
+                        <SelectItem key={site.id} value={site.id}>{site.name}{!site.isActive && ' (Inactive)'}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

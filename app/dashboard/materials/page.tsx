@@ -45,6 +45,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ExportToExcel, filterByDateRange, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate, formatCurrency } from '@/lib/export-utils';
+import { formatDateForAPI } from '@/lib/api-utils';
 import { Pagination } from '@/components/Pagination';
 
 export default function MaterialsPage() {
@@ -65,7 +66,13 @@ export default function MaterialsPage() {
     notes: '',
   });
 
-  const { data, isLoading, error, refetch } = useMaterials(page);
+  const filterParams = {
+    siteId: selectedSite?.id,
+    fromDate: formatDateForAPI(fromDate),
+    toDate: formatDateForAPI(toDate),
+  };
+
+  const { data, isLoading, error, refetch } = useMaterials(page, 10, filterParams);
   const materials = data?.data;
   const pagination = data?.pagination;
   const { data: sites } = useAllSites();
@@ -79,21 +86,8 @@ export default function MaterialsPage() {
     setPage(1);
   }, [selectedSite, fromDate, toDate]);
 
-  // Filter materials by selected site and date range
-  const filteredMaterials = useMemo(() => {
-    if (!materials) return [];
-    let filtered = materials;
-    
-    // Filter by site
-    if (selectedSite) {
-      filtered = filtered.filter(m => m.siteId === selectedSite.id);
-    }
-    
-    // Filter by date range
-    filtered = filterByDateRange(filtered, (m) => m.date, fromDate, toDate);
-    
-    return filtered;
-  }, [materials, selectedSite, fromDate, toDate]);
+  // No client-side filtering needed - all filtering is done server-side
+  const filteredMaterials = materials || [];
 
   const handleOpenDialog = (material?: MaterialWithRelations) => {
     if (material) {
@@ -161,17 +155,14 @@ export default function MaterialsPage() {
     }
   };
 
-  // Handle export - fetches all data from API with filters from ExportToExcel component
+  // Handle export - fetches all data from API with filters matching display
   const handleExport = async (filters: ExportFilters) => {
     try {
-      // Build siteId from selectedSiteIds - use first selected site or undefined
-      const siteId = filters.selectedSiteIds.length > 0 ? filters.selectedSiteIds[0] : undefined;
-      
-      // Fetch all materials with filters from API
+      // Fetch all materials with filters from API - use page state, not ExportFilters
       const dataToExport = await fetchAllMaterialsForExport({
-        siteId,
-        fromDate: filters.fromDate?.toISOString().split('T')[0],
-        toDate: filters.toDate?.toISOString().split('T')[0],
+        siteId: selectedSite?.id,
+        fromDate: formatDateForAPI(fromDate),
+        toDate: formatDateForAPI(toDate),
       });
 
       await exportToExcel(dataToExport, {

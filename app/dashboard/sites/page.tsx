@@ -46,6 +46,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { EmptyState } from '@/components/EmptyState';
 import { ExportToExcel, filterByDateRange, filterBySites, type ExportFilters } from '@/components/ExportToExcel';
 import { exportToExcel, formatDate } from '@/lib/export-utils';
+import { formatDateForAPI } from '@/lib/api-utils';
 import { cn } from '@/lib/utils';
 import { format, isWithinInterval, startOfDay } from 'date-fns';
 import { useHydrated } from '@/hooks/useHydration';
@@ -164,6 +165,20 @@ export default function SitesPage() {
     const presentCount = siteAttendance.filter(a => a.status === AttendanceStatus.PRESENT).length;
     
     return { present: presentCount, total: siteAttendance.length };
+  };
+
+  // Get count of workers assigned to a site
+  const getWorkersAssignedToSite = (site: Site): number => {
+    if (!workers) return 0;
+    
+    const activeWorkers = workers.filter(w => w.isActive);
+    const assignedCount = activeWorkers.filter(worker => {
+      if (!worker.assignedSites) return false;
+      const siteNames = worker.assignedSites.split(',').map(s => s.trim());
+      return siteNames.includes(site.name);
+    }).length;
+    
+    return assignedCount;
   };
 
   // Initialize worker attendance when site changes
@@ -348,8 +363,8 @@ export default function SitesPage() {
       // Fetch all attendance records from API with filters
       const dataToExport = await fetchAllAttendanceForExport({
         siteIds: filters.selectedSiteIds,
-        fromDate: filters.fromDate?.toISOString().split('T')[0],
-        toDate: filters.toDate?.toISOString().split('T')[0],
+        fromDate: formatDateForAPI(filters.fromDate),
+        toDate: formatDateForAPI(filters.toDate),
       });
 
       await exportToExcel(dataToExport, {
@@ -456,6 +471,7 @@ export default function SitesPage() {
           {allSites.map((site) => {
             const isActiveOnDate = isSiteActiveOnDate(site);
             const stats = getSiteAttendanceStats(site.id);
+            const assignedWorkers = getWorkersAssignedToSite(site);
             const isSelected = selectedSite?.id === site.id;
             
             return (
@@ -505,11 +521,15 @@ export default function SitesPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Users className="h-4 w-4" />
-                      <span>{stats.total} workers</span>
+                      <span>{assignedWorkers} assigned</span>
                     </div>
                     {stats.total > 0 ? (
-                      <Badge variant={stats.present === stats.total ? 'default' : 'secondary'}>
-                        {stats.present}/{stats.total} present
+                      <Badge variant={stats.present === assignedWorkers ? 'default' : 'secondary'}>
+                        {stats.present}/{assignedWorkers} present
+                      </Badge>
+                    ) : assignedWorkers > 0 ? (
+                      <Badge variant="outline">
+                        0/{assignedWorkers} present
                       </Badge>
                     ) : (
                       <Badge variant={isActiveOnDate ? 'outline' : 'secondary'}>

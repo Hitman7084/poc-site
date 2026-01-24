@@ -88,13 +88,25 @@ export async function DELETE(
 
     const { id } = await params
 
-    // Soft delete - set isActive to false
-    const worker = await prisma.worker.update({
-      where: { id },
-      data: { isActive: false },
+    // Delete related records first (attendance and overtime)
+    await prisma.$transaction(async (tx) => {
+      // Delete attendance records for this worker
+      await tx.attendanceRecord.deleteMany({
+        where: { workerId: id },
+      })
+      
+      // Delete overtime records for this worker
+      await tx.overtime.deleteMany({
+        where: { workerId: id },
+      })
+      
+      // Delete the worker
+      await tx.worker.delete({
+        where: { id },
+      })
     })
 
-    return apiSuccess(worker)
+    return apiSuccess({ deleted: true })
   } catch (error) {
     console.error('DELETE /api/workers/[id] error:', error)
     if (isNotFoundError(error)) {

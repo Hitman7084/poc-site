@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { MaterialWithRelations, MaterialInput, PaginatedResponse } from '@/lib/types';
 import type { PaginationInfo } from '@/components/Pagination';
+import { dateStringToISO } from '@/lib/api-utils';
 
 const QUERY_KEY = 'materials';
 
@@ -9,8 +10,21 @@ export type PaginatedMaterials = {
   pagination: PaginationInfo;
 };
 
-async function fetchMaterials(page: number = 1, limit: number = 10): Promise<PaginatedMaterials> {
-  const response = await fetch(`/api/materials?page=${page}&limit=${limit}`);
+export type MaterialFilterParams = {
+  siteId?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+async function fetchMaterials(page: number = 1, limit: number = 10, filters: MaterialFilterParams = {}): Promise<PaginatedMaterials> {
+  const params = new URLSearchParams();
+  params.set('page', page.toString());
+  params.set('limit', limit.toString());
+  if (filters.siteId) params.set('siteId', filters.siteId);
+  if (filters.fromDate) params.set('fromDate', filters.fromDate);
+  if (filters.toDate) params.set('toDate', filters.toDate);
+  
+  const response = await fetch(`/api/materials?${params.toString()}`);
   const result: PaginatedResponse<MaterialWithRelations> = await response.json();
   if (!result.success || !result.data) {
     throw new Error('Failed to fetch materials');
@@ -24,7 +38,7 @@ async function fetchMaterials(page: number = 1, limit: number = 10): Promise<Pag
 async function createMaterial(data: MaterialInput): Promise<MaterialWithRelations> {
   const payload = {
     ...data,
-    date: new Date(data.date).toISOString(),
+    date: dateStringToISO(data.date),
   };
   const response = await fetch('/api/materials', {
     method: 'POST',
@@ -41,7 +55,7 @@ async function createMaterial(data: MaterialInput): Promise<MaterialWithRelation
 async function updateMaterial(id: string, data: MaterialInput): Promise<MaterialWithRelations> {
   const payload = {
     ...data,
-    date: new Date(data.date).toISOString(),
+    date: dateStringToISO(data.date),
   };
   const response = await fetch(`/api/materials/${id}`, {
     method: 'PUT',
@@ -65,10 +79,10 @@ async function deleteMaterial(id: string): Promise<void> {
   }
 }
 
-export function useMaterials(page: number = 1, limit: number = 10) {
+export function useMaterials(page: number = 1, limit: number = 10, filters: MaterialFilterParams = {}) {
   return useQuery({
-    queryKey: [QUERY_KEY, page, limit],
-    queryFn: () => fetchMaterials(page, limit),
+    queryKey: [QUERY_KEY, page, limit, filters],
+    queryFn: () => fetchMaterials(page, limit, filters),
   });
 }
 

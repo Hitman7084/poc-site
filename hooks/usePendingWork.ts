@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PendingWorkWithRelations, PendingWorkInput, PaginatedResponse } from '@/lib/types';
 import type { PaginationInfo } from '@/components/Pagination';
+import { dateStringToISO } from '@/lib/api-utils';
 
 const QUERY_KEY = 'pending-work';
 
@@ -9,8 +10,23 @@ export type PaginatedPendingWork = {
   pagination: PaginationInfo;
 };
 
-async function fetchPendingWork(page: number = 1, limit: number = 10): Promise<PaginatedPendingWork> {
-  const response = await fetch(`/api/pending-work?page=${page}&limit=${limit}`);
+export type PendingWorkFilterParams = {
+  siteId?: string;
+  status?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+async function fetchPendingWork(page: number = 1, limit: number = 10, filters: PendingWorkFilterParams = {}): Promise<PaginatedPendingWork> {
+  const params = new URLSearchParams();
+  params.set('page', page.toString());
+  params.set('limit', limit.toString());
+  if (filters.siteId) params.set('siteId', filters.siteId);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.fromDate) params.set('fromDate', filters.fromDate);
+  if (filters.toDate) params.set('toDate', filters.toDate);
+  
+  const response = await fetch(`/api/pending-work?${params.toString()}`);
   const result: PaginatedResponse<PendingWorkWithRelations> = await response.json();
   if (!result.success || !result.data) {
     throw new Error('Failed to fetch pending work');
@@ -24,8 +40,8 @@ async function fetchPendingWork(page: number = 1, limit: number = 10): Promise<P
 async function createPendingWork(data: PendingWorkInput): Promise<PendingWorkWithRelations> {
   const payload = {
     ...data,
-    expectedCompletionDate: data.expectedCompletionDate ? new Date(data.expectedCompletionDate).toISOString() : undefined,
-    actualCompletionDate: data.actualCompletionDate ? new Date(data.actualCompletionDate).toISOString() : undefined,
+    expectedCompletionDate: data.expectedCompletionDate ? dateStringToISO(data.expectedCompletionDate) : undefined,
+    actualCompletionDate: data.actualCompletionDate ? dateStringToISO(data.actualCompletionDate) : undefined,
   };
   const response = await fetch('/api/pending-work', {
     method: 'POST',
@@ -42,8 +58,8 @@ async function createPendingWork(data: PendingWorkInput): Promise<PendingWorkWit
 async function updatePendingWork(id: string, data: PendingWorkInput): Promise<PendingWorkWithRelations> {
   const payload = {
     ...data,
-    expectedCompletionDate: data.expectedCompletionDate ? new Date(data.expectedCompletionDate).toISOString() : undefined,
-    actualCompletionDate: data.actualCompletionDate ? new Date(data.actualCompletionDate).toISOString() : undefined,
+    expectedCompletionDate: data.expectedCompletionDate ? dateStringToISO(data.expectedCompletionDate) : undefined,
+    actualCompletionDate: data.actualCompletionDate ? dateStringToISO(data.actualCompletionDate) : undefined,
   };
   const response = await fetch(`/api/pending-work/${id}`, {
     method: 'PUT',
@@ -67,10 +83,10 @@ async function deletePendingWork(id: string): Promise<void> {
   }
 }
 
-export function usePendingWork(page: number = 1, limit: number = 10) {
+export function usePendingWork(page: number = 1, limit: number = 10, filters: PendingWorkFilterParams = {}) {
   return useQuery({
-    queryKey: [QUERY_KEY, page, limit],
-    queryFn: () => fetchPendingWork(page, limit),
+    queryKey: [QUERY_KEY, page, limit, filters],
+    queryFn: () => fetchPendingWork(page, limit, filters),
   });
 }
 
@@ -108,6 +124,7 @@ export function useDeletePendingWork() {
 // Export function to fetch all pending work for export with filters
 export type ExportPendingWorkParams = {
   siteId?: string;
+  status?: string;
   fromDate?: string;
   toDate?: string;
 };
@@ -116,6 +133,7 @@ export async function fetchAllPendingWorkForExport(params: ExportPendingWorkPara
   const searchParams = new URLSearchParams();
   searchParams.set('all', 'true');
   if (params.siteId) searchParams.set('siteId', params.siteId);
+  if (params.status) searchParams.set('status', params.status);
   if (params.fromDate) searchParams.set('fromDate', params.fromDate);
   if (params.toDate) searchParams.set('toDate', params.toDate);
   

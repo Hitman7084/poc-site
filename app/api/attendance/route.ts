@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
-import { apiSuccess, apiError, validateRequest, parseDate } from '@/lib/api-utils'
+import { apiSuccess, apiError, validateRequest, parseDate, parseEndOfDayDate } from '@/lib/api-utils'
 import { createAttendanceSchema } from '@/lib/validations/attendance'
 import { AttendanceStatus } from '@/lib/types'
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         ...(fromDate || toDate ? {
           date: {
             ...(fromDate && { gte: parseDate(fromDate) }),
-            ...(toDate && { lte: parseDate(toDate) }),
+            ...(toDate && { lte: parseEndOfDayDate(toDate) }),
           },
         } : {}),
       },

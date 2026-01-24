@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Expense, ExpenseInput, PaginatedResponse } from '@/lib/types';
 import type { PaginationInfo } from '@/components/Pagination';
+import { dateStringToISO } from '@/lib/api-utils';
 
 const QUERY_KEY = 'expenses';
 
@@ -9,8 +10,23 @@ export type PaginatedExpenses = {
   pagination: PaginationInfo;
 };
 
-async function fetchExpenses(page: number = 1, limit: number = 10): Promise<PaginatedExpenses> {
-  const response = await fetch(`/api/expenses?page=${page}&limit=${limit}`);
+export type ExpenseFilterParams = {
+  siteId?: string;
+  category?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
+async function fetchExpenses(page: number = 1, limit: number = 10, filters: ExpenseFilterParams = {}): Promise<PaginatedExpenses> {
+  const params = new URLSearchParams();
+  params.set('page', page.toString());
+  params.set('limit', limit.toString());
+  if (filters.siteId) params.set('siteId', filters.siteId);
+  if (filters.category) params.set('category', filters.category);
+  if (filters.fromDate) params.set('fromDate', filters.fromDate);
+  if (filters.toDate) params.set('toDate', filters.toDate);
+  
+  const response = await fetch(`/api/expenses?${params.toString()}`);
   const result: PaginatedResponse<Expense> = await response.json();
   if (!result.success || !result.data) {
     throw new Error('Failed to fetch expenses');
@@ -24,7 +40,7 @@ async function fetchExpenses(page: number = 1, limit: number = 10): Promise<Pagi
 async function createExpense(data: ExpenseInput): Promise<Expense> {
   const payload = {
     ...data,
-    date: new Date(data.date).toISOString(),
+    date: dateStringToISO(data.date),
   };
   const response = await fetch('/api/expenses', {
     method: 'POST',
@@ -41,7 +57,7 @@ async function createExpense(data: ExpenseInput): Promise<Expense> {
 async function updateExpense(id: string, data: ExpenseInput): Promise<Expense> {
   const payload = {
     ...data,
-    date: new Date(data.date).toISOString(),
+    date: dateStringToISO(data.date),
   };
   const response = await fetch(`/api/expenses/${id}`, {
     method: 'PUT',
@@ -65,10 +81,10 @@ async function deleteExpense(id: string): Promise<void> {
   }
 }
 
-export function useExpenses(page: number = 1, limit: number = 10) {
+export function useExpenses(page: number = 1, limit: number = 10, filters: ExpenseFilterParams = {}) {
   return useQuery({
-    queryKey: [QUERY_KEY, page, limit],
-    queryFn: () => fetchExpenses(page, limit),
+    queryKey: [QUERY_KEY, page, limit, filters],
+    queryFn: () => fetchExpenses(page, limit, filters),
   });
 }
 
@@ -105,6 +121,7 @@ export function useDeleteExpense() {
 
 // Export function to fetch all expenses for export with filters
 export type ExportExpensesParams = {
+  category?: string;
   fromDate?: string;
   toDate?: string;
 };
@@ -112,6 +129,7 @@ export type ExportExpensesParams = {
 export async function fetchAllExpensesForExport(params: ExportExpensesParams = {}): Promise<Expense[]> {
   const searchParams = new URLSearchParams();
   searchParams.set('all', 'true');
+  if (params.category && params.category !== 'all') searchParams.set('category', params.category);
   if (params.fromDate) searchParams.set('fromDate', params.fromDate);
   if (params.toDate) searchParams.set('toDate', params.toDate);
   
